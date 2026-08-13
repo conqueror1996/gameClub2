@@ -206,6 +206,7 @@ def auto_login(site_key, username, password):
 
     elif site_key == "khelo24match99.com":
         login_data = urlencode({
+            "_token": csrf_meta or xsrf,
             "email": username, "password": password,
         }).encode()
         login_req = urllib.request.Request(f"{base}/api2/login",
@@ -218,10 +219,15 @@ def auto_login(site_key, username, password):
         raise Exception(f"No login handler for {site_key}")
 
     # Step 3: Execute login
+    import sys
+    print(f"[LOGIN DEBUG] Site: {site_key}, Endpoint: {login_req.full_url}, Method: {login_req.method}", file=sys.stderr)
+    print(f"[LOGIN DEBUG] Content-Type: {login_req.get_header('Content-type')}", file=sys.stderr)
+    print(f"[LOGIN DEBUG] Payload: {login_req.data[:200] if login_req.data else 'None'}", file=sys.stderr)
     try:
         resp = opener.open(login_req, timeout=30)
         body = resp.read().decode('utf-8', 'ignore')
         status = resp.status
+        print(f"[LOGIN DEBUG] Response: HTTP {status} -> {body[:200]}", file=sys.stderr)
     except urllib.error.HTTPError as e:
         body = e.read().decode('utf-8', 'ignore')
         status = e.code
