@@ -216,15 +216,10 @@ def auto_login(site_key, username, password):
         resp_status = resp_json.get("status", 200)
         msg = resp_json.get("message", "")
 
-        if resp_status == 201:
-            raise Exception(f"Invalid credentials: {msg}")
-        elif resp_status == 303:
-            raise Exception(f"{msg} — login to site in browser first")
-        elif resp_status == 403:
-            raise Exception(f"{msg} — reset password in browser first")
+        if resp_status in (201, 303, 403) or "reset your password" in msg.lower() or "invalid" in msg.lower():
+            raise Exception(f"Invalid credentials: Check username & password for {site['name']}")
         elif resp_status not in (200, True) and not resp_json.get("success"):
-            if "invalid" in msg.lower() or "wrong" in msg.lower():
-                raise Exception(f"Invalid credentials: {msg}")
+            raise Exception(f"Login failed: {msg}")
     except json.JSONDecodeError:
         pass
 
