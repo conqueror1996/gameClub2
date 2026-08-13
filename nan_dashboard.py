@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, session
 import ssl, json, time, re, base64, urllib.request, urllib.error, os
 from http.cookiejar import CookieJar
 from urllib.parse import unquote, urlencode
-import secrets, random
+import random
 
 app = Flask(__name__)
 # Fixed key so sessions survive restarts/deploys — override via env var
@@ -47,6 +47,16 @@ SITES = {
         "name": "BetInExchange88",
         "base": "https://betinexchange88.com",
         "launch": "https://betinexchange88.com/softswiss/launch?q=2409&type=slots",
+    },
+    "spinmatch99.com": {
+        "name": "SpinMatch99",
+        "base": "https://spinmatch99.com",
+        "launch": "https://spinmatch99.com/softswiss/launch?q=2409&type=slots",
+    },
+    "spinjeet365.com": {
+        "name": "SpinJeet365",
+        "base": "https://spinjeet365.com",
+        "launch": "https://spinjeet365.com/softswiss/launch?q=2409&type=slots",
     },
 }
 
@@ -155,7 +165,7 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/x-www-form-urlencoded"),
             method="POST")
 
-    elif site_key in ("playinhorse.com", "cricash24.com", "betinexchange88.com"):
+    elif site_key in ("playinhorse.com", "cricash24.com", "betinexchange88.com", "spinmatch99.com", "spinjeet365.com"):
         login_data = json.dumps({"username": username, "password": password}).encode()
         login_req = urllib.request.Request(f"{base}/api2/v2/login",
             data=login_data,

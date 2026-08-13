@@ -252,8 +252,9 @@
 
         <div class="site-info">
             <p>
-                <span>StarExch555</span> · <span>PlayInHorse</span> · <span>Cricash24</span><br>
-                <span>PlayKaro365</span> · <span>Khelo24Match99</span>
+                {% for key, site in sites.items() %}
+                <span>{{ site.name }}</span>{% if not loop.last %} · {% endif %}
+                {% endfor %}
             </p>
         </div>
     </div>
