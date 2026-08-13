@@ -128,8 +128,8 @@ def auto_login(site_key, username, password):
     if csrf_m:
         csrf_meta = csrf_m.group(1)
 
-    # Cricash24/SpinMatch99/SpinJeet365: CSRF meta is on /mobile page, not homepage
-    if not csrf_meta and site_key in ("cricash24.com", "spinmatch99.com", "spinjeet365.com"):
+    # Fallback: if CSRF meta not on homepage, try /mobile page (works for all Nucleus sites)
+    if not csrf_meta:
         try:
             mob_req = urllib.request.Request(f"{base}/mobile")
             for k, v in BROWSER_HEADERS.items():
@@ -139,6 +139,12 @@ def auto_login(site_key, username, password):
             mob_m = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', mob_html)
             if mob_m:
                 csrf_meta = mob_m.group(1)
+            # Also grab any new XSRF cookies from /mobile
+            if not xsrf:
+                for c in jar:
+                    if 'XSRF' in c.name.upper():
+                        xsrf = unquote(c.value)
+                        break
         except:
             pass
 
