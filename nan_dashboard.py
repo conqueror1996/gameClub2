@@ -95,8 +95,9 @@ def auto_login(site_key, username, password):
     }
 
     # Step 1: GET main page to get XSRF token + session cookies (with auto-retry)
+    import time as _time
     html = ""
-    for attempt in range(2):
+    for attempt in range(3):
         try:
             req = urllib.request.Request(base)
             for k, v in BROWSER_HEADERS.items():
@@ -104,9 +105,16 @@ def auto_login(site_key, username, password):
             resp = opener.open(req, timeout=30)
             html = resp.read().decode('utf-8', 'ignore')
             break
-        except Exception:
-            if attempt == 1:
+        except urllib.error.HTTPError as he:
+            if he.code == 403 and attempt < 2:
+                _time.sleep(2)
+                continue
+            if attempt == 2:
                 raise
+        except Exception:
+            if attempt == 2:
+                raise
+            _time.sleep(2)
 
     # Extract XSRF from cookies
     xsrf = None
