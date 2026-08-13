@@ -450,25 +450,23 @@
 
         <!-- BET SECTION -->
         <div class="bet-section">
-            <div class="bet-title">Place NaN Bet <span style="font-weight:400;color:var(--muted);text-transform:none">(select one or more)</span></div>
+            <div class="bet-title">Place NaN Bet</div>
 
             <div class="pos-row">
-                <div class="pos-btn" id="posPlayer" onclick="togglePos('player')">
-                    <div style="font-size:15px;margin-bottom:4px">PLAYER</div>
-                    <input type="number" id="amtPlayer" class="pos-amt" placeholder="₹ amt" min="0.01" step="0.01" onclick="event.stopPropagation()" oninput="updatePreview()">
-                </div>
-                <div class="pos-btn" id="posBanker" onclick="togglePos('banker')">
-                    <div style="font-size:15px;margin-bottom:4px">BANKER</div>
-                    <input type="number" id="amtBanker" class="pos-amt" placeholder="₹ amt" min="0.01" step="0.01" onclick="event.stopPropagation()" oninput="updatePreview()">
-                </div>
-                <div class="pos-btn" id="posTie" onclick="togglePos('tie')">
-                    <div style="font-size:15px;margin-bottom:4px">TIE</div>
-                    <input type="number" id="amtTie" class="pos-amt" placeholder="₹ amt" min="0.01" step="0.01" onclick="event.stopPropagation()" oninput="updatePreview()">
+                <div class="pos-btn sel-player" id="posPlayer" onclick="setPos('player')">PLAYER</div>
+                <div class="pos-btn" id="posBanker" onclick="setPos('banker')">BANKER</div>
+                <div class="pos-btn" id="posTie" onclick="setPos('tie')">TIE</div>
+            </div>
+
+            <div class="amount-row">
+                <div class="amount-field">
+                    <label>Bet Amount (₹)</label>
+                    <input type="number" id="betAmt" value="1" min="0.01" step="0.01" placeholder="Enter amount">
                 </div>
             </div>
 
             <div class="bet-preview">
-                CMD=PLACEBET &nbsp; BET=<span id="prevBet"><span class="nan">NaN</span> <span class="nan">NaN</span> 0</span>
+                CMD=PLACEBET &nbsp; BET=<span id="prevBet"><span class="real">1</span> <span class="nan">NaN</span> 0</span>
             </div>
 
             <button class="btn-place" id="btnBet" onclick="placeBet()">
@@ -489,47 +487,35 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        let selectedPos = new Set();
+        let curPos = 'player';
         let betting = false;
 
-        function togglePos(p) {
-            const el = document.getElementById('pos' + p.charAt(0).toUpperCase() + p.slice(1));
+        function setPos(p) {
+            curPos = p;
+            document.querySelectorAll('.pos-btn').forEach(b => b.className = 'pos-btn');
             const cls = {player:'sel-player', banker:'sel-banker', tie:'sel-tie'};
-            if (selectedPos.has(p)) {
-                selectedPos.delete(p);
-                el.classList.remove(cls[p]);
-                document.getElementById('amt' + p.charAt(0).toUpperCase() + p.slice(1)).value = '';
-            } else {
-                selectedPos.add(p);
-                el.classList.add(cls[p]);
-                document.getElementById('amt' + p.charAt(0).toUpperCase() + p.slice(1)).focus();
-            }
+            document.getElementById('pos'+p.charAt(0).toUpperCase()+p.slice(1)).classList.add(cls[p]);
             updatePreview();
         }
 
         function updatePreview() {
-            const pAmt = parseFloat(document.getElementById('amtPlayer').value) || 0;
-            const bAmt = parseFloat(document.getElementById('amtBanker').value) || 0;
-            const tAmt = parseFloat(document.getElementById('amtTie').value) || 0;
-
-            const fmt = (v) => v > 0 ? `<span class="real">${v}</span>` : `<span class="nan">NaN</span>`;
-            document.getElementById('prevBet').innerHTML = `${fmt(pAmt)} ${fmt(bAmt)} ${tAmt > 0 ? `<span class="real">${tAmt}</span>` : '0'}`;
+            const a = document.getElementById('betAmt').value || '0';
+            let html = '';
+            if (curPos === 'player') html = `<span class="real">${a}</span> <span class="nan">NaN</span> 0`;
+            else if (curPos === 'banker') html = `<span class="nan">NaN</span> <span class="real">${a}</span> 0`;
+            else html = `<span class="nan">NaN</span> 0 <span class="real">${a}</span>`;
+            document.getElementById('prevBet').innerHTML = html;
         }
+
+        document.getElementById('betAmt').addEventListener('input', updatePreview);
 
         async function placeBet() {
             if (betting) return;
-
-            const pAmt = parseFloat(document.getElementById('amtPlayer').value) || 0;
-            const bAmt = parseFloat(document.getElementById('amtBanker').value) || 0;
-            const tAmt = parseFloat(document.getElementById('amtTie').value) || 0;
-
-            if (pAmt <= 0 && bAmt <= 0 && tAmt <= 0) {
-                toast('Enter amount on at least one position', 'err');
-                return;
-            }
-
             betting = true;
             const btn = document.getElementById('btnBet');
+            const amt = parseFloat(document.getElementById('betAmt').value);
+            if (!amt || amt <= 0) { toast('Enter valid amount', 'err'); betting = false; return; }
+
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span> Placing...';
 
@@ -537,7 +523,7 @@
                 const r = await fetch('/api/bet', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({player: pAmt, banker: bAmt, tie: tAmt})
+                    body: JSON.stringify({amount: amt, position: curPos})
                 });
                 const d = await r.json();
 
@@ -557,7 +543,12 @@
                     addRow(d);
                     toast(d.won ? `Won! +₹${d.profit.toFixed(2)}` : `${d.winner} won`, d.won ? 'ok' : 'err');
                 } else {
-                    toast(d.error || 'Bet failed', 'err');
+                    if (r.status === 401) {
+                        toast('Session expired — redirecting to login...', 'err');
+                        setTimeout(() => { window.location.href = '/api/logout'; }, 1500);
+                    } else {
+                        toast(d.error || 'Bet failed', 'err');
+                    }
                 }
             } catch (e) {
                 toast('Error: ' + e.message, 'err');
@@ -584,7 +575,7 @@
                     <div class="hist-winner ${wc}">${d.winner}</div>
                     <div class="hist-cards">P: ${d.player_cards.join(' ')} | B: ${d.dealer_cards.join(' ')}</div>
                 </div>
-                <div class="hist-detail">${d.position}<br>${d.time}</div>
+                <div class="hist-detail">₹${d.amount} ${d.position}<br>${d.time}</div>
                 <div class="hist-profit ${pc}">${pt}</div>
             `;
             feed.insertBefore(row, feed.firstChild);

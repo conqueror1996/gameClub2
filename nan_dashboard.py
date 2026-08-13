@@ -32,12 +32,7 @@ SITES = {
         "base": "https://cricash24.com",
         "launch": "https://cricash24.com/softswiss/launch?q=2409&type=slots",
     },
-    "playkaro365.com": {
-        "name": "PlayKaro365",
-        "base": "https://playkaro365.com",
-        "launch": "https://playkaro365.com/softswiss/launch?q=2409&type=slots",
-        "waf": True,  # AWS WAF blocks non-browser — needs cookie paste
-    },
+
     "khelo24match99.com": {
         "name": "Khelo24Match99",
         "base": "https://khelo24match99.com",
@@ -183,13 +178,6 @@ def auto_login(site_key, username, password):
                 {"X-CSRF-TOKEN": csrf_meta or xsrf}),
             method="POST")
 
-    elif site_key == "playkaro365.com":
-        login_data = json.dumps({"username": username, "password": password}).encode()
-        login_req = urllib.request.Request(f"{base}/api2/v2/login",
-            data=login_data,
-            headers=make_xhr_headers("application/json",
-                {"X-CSRF-TOKEN": csrf_meta or xsrf}),
-            method="POST")
     else:
         raise Exception(f"No login handler for {site_key}")
 
@@ -450,30 +438,50 @@ def bet():
         return jsonify({"error": "Not logged in"}), 401
 
     data = request.json
-    p_amt = float(data.get('player', 0) or 0)
-    b_amt = float(data.get('banker', 0) or 0)
-    t_amt = float(data.get('tie', 0) or 0)
-
-    if p_amt <= 0 and b_amt <= 0 and t_amt <= 0:
-        return jsonify({"error": "Enter amount on at least one position"}), 400
-
-    # Build bet string: "player banker tie" — NaN for positions with real bets
-    p_val = p_amt if p_amt > 0 else "NaN"
-    b_val = b_amt if b_amt > 0 else "NaN"
-    t_val = t_amt if t_amt > 0 else 0
-    bet_string = f"{p_val} {b_val} {t_val}"
-
-    # Label for history
-    parts = []
-    if p_amt > 0: parts.append(f"P:₹{p_amt}")
-    if b_amt > 0: parts.append(f"B:₹{b_amt}")
-    if t_amt > 0: parts.append(f"T:₹{t_amt}")
-    position_label = " + ".join(parts)
+    amount = data.get('amount', 1)
+    position = data.get('position', 'banker')
 
     try:
-        token = get_token(session['site'], session['cookies'])
-        sid = get_sid(token)
-        result, raw = place_bet(sid, bet_string)
+        amount = float(amount)
+    except:
+        return jsonify({"error": "Invalid amount"}), 400
+    if amount <= 0:
+        return jsonify({"error": "Amount must be > 0"}), 400
+
+    bet_map = {
+        'player': f"{amount} NaN 0",
+        'banker': f"NaN {amount} 0",
+        'tie':    f"NaN 0 {amount}",
+    }
+    if position not in bet_map:
+        return jsonify({"error": "Invalid position"}), 400
+
+    try:
+        # Reuse stored SID — don't create new session on every bet
+        sid = session.get('sid')
+
+        if not sid:
+            token = get_token(session['site'], session['cookies'])
+            sid = get_sid(token)
+            session['sid'] = sid
+
+        result, raw = place_bet(sid, bet_map[position])
+
+        # If bet failed, try refreshing SID (and re-login if cookies expired)
+        if result.get('RESULT') != 'OK':
+            error_text = unquote(result.get('ERRORTEXT', '')).lower()
+            if 'session' in error_text or 'expired' in error_text or 'invalid' in error_text:
+                try:
+                    # Try getting new SID with existing cookies
+                    token = get_token(session['site'], session['cookies'])
+                    sid = get_sid(token)
+                except:
+                    # Cookies dead — clear SID, user must re-login
+                    session.pop('sid', None)
+                    return jsonify({"error": "Session expired — please re-login"}), 401
+
+                session['sid'] = sid
+                result, raw = place_bet(sid, bet_map[position])
 
         if result.get('RESULT') != 'OK':
             return jsonify({"error": f"{result.get('RESULT')}: {unquote(result.get('ERRORTEXT', '?'))}"}), 400
@@ -483,10 +491,9 @@ def bet():
         winner = {'0': 'TIE', '1': 'PLAYER', '2': 'BANKER'}.get(winner_code, winner_code)
         payout = result.get('PAYOUT', '0')
 
-        # Check if any of our bets won
-        won = (p_amt > 0 and winner_code == '1') or \
-              (b_amt > 0 and winner_code == '2') or \
-              (t_amt > 0 and winner_code == '0')
+        won = (position == 'player' and winner_code == '1') or \
+              (position == 'banker' and winner_code == '2') or \
+              (position == 'tie' and winner_code == '0')
 
         old_bal = session.get('balance', 0)
         profit = round(balance - old_bal, 2)
@@ -500,7 +507,7 @@ def bet():
         else: st['losses'] += 1
 
         rd = {
-            "round": st['rounds'], "position": position_label,
+            "round": st['rounds'], "amount": amount, "position": position.upper(),
             "winner": winner, "payout": payout, "profit": profit,
             "balance": balance, "won": won, "time": time.strftime("%H:%M:%S"),
             "player_cards": parse_cards(result.get('PLAYERPOKER', '')),
@@ -525,8 +532,11 @@ def get_balance():
     if 'logged_in' not in session:
         return jsonify({"error": "Not logged in"}), 401
     try:
-        token = get_token(session['site'], session['cookies'])
-        sid = get_sid(token)
+        sid = session.get('sid')
+        if not sid:
+            token = get_token(session['site'], session['cookies'])
+            sid = get_sid(token)
+            session['sid'] = sid
         result, _ = place_bet(sid, "NaN 0 0")
         balance = float(result.get('BALANCE', 0))
         session['balance'] = balance
