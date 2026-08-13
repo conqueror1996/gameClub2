@@ -77,22 +77,21 @@ def auto_login(site_key, username, password):
     )
     UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
 
-    # Full browser headers to bypass WAF
+    # Modern Stealth Chrome Browser Headers
+    STEALTH_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
     BROWSER_HEADERS = {
-        "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,hi;q=0.8",
-        "Accept-Encoding": "identity",
-        "Sec-CH-UA": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+        "User-Agent": STEALTH_UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-CH-UA": '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
         "Sec-CH-UA-Mobile": "?0",
-        "Sec-CH-UA-Platform": '"macOS"',
+        "Sec-CH-UA-Platform": '"Windows"',
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-User": "?1",
         "Upgrade-Insecure-Requests": "1",
-        "Cache-Control": "max-age=0",
-        "Connection": "keep-alive",
+        "Priority": "u=0, i",
     }
 
     # Step 1: GET main page to get XSRF token + session cookies
@@ -134,20 +133,21 @@ def auto_login(site_key, username, password):
     # Common XHR headers that look like a real browser AJAX call
     def make_xhr_headers(content_type, extra=None):
         h = {
-            "User-Agent": UA,
+            "User-Agent": STEALTH_UA,
             "Content-Type": content_type,
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9,hi;q=0.8",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
             "X-Requested-With": "XMLHttpRequest",
             "X-XSRF-TOKEN": xsrf,
             "Origin": base,
             "Referer": f"{base}/",
-            "Sec-CH-UA": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+            "Sec-CH-UA": '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
             "Sec-CH-UA-Mobile": "?0",
-            "Sec-CH-UA-Platform": '"macOS"',
+            "Sec-CH-UA-Platform": '"Windows"',
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
+            "Priority": "u=1, i",
         }
         if extra:
             h.update(extra)
@@ -157,7 +157,7 @@ def auto_login(site_key, username, password):
     if site_key == "starexch555.com":
         # starexch555: need _token from /append/loginpp
         lp_req = urllib.request.Request(f"{base}/append/loginpp",
-            headers={"User-Agent": UA, "X-Requested-With": "XMLHttpRequest",
+            headers={"User-Agent": STEALTH_UA, "X-Requested-With": "XMLHttpRequest",
                      "Referer": f"{base}/", "Sec-Fetch-Dest": "empty",
                      "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-origin"})
         lp_resp = opener.open(lp_req, timeout=20)
