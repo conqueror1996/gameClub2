@@ -154,8 +154,12 @@ def auto_login(site_key, username, password):
     if not xsrf and jar:
         xsrf = next((c.value for c in jar), None)
 
+    # Check for AWS WAF 202 Challenge or missing tokens
+    is_waf_challenge = "awsWafCookieDomainList" in html or "gokuProps" in html
     if not xsrf and not csrf_meta:
-        raise Exception("Could not connect to site security token — please try again in 5 seconds")
+        if is_waf_challenge:
+            raise Exception(f"AWS WAF Security Challenge active on {site['name']} — Paste cookies from browser or try again in 5 seconds")
+        raise Exception(f"Could not connect to site security token for {site['name']} — please try again in 5 seconds")
 
     # Common XHR headers that look like a real browser AJAX call
     def make_xhr_headers(content_type, extra=None):

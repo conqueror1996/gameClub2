@@ -237,8 +237,12 @@
                 </div>
             </div>
 
+            <div style="margin-bottom:14px;text-align:right;">
+                <a href="#" id="toggleModeBtn" style="color:var(--accent);font-size:11px;text-decoration:none;font-weight:500;" onclick="toggleLoginMode(event)">🍪 Switch to Cookie Paste Mode (WAF Bypass)</a>
+            </div>
+
             <div id="wafNotice" style="display:none;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);color:#eab308;padding:10px;border-radius:8px;margin-bottom:12px;font-size:11px;">
-                ⚠️ This site has WAF protection. Login in browser → open DevTools (F12) → Application → Cookies → copy cookie string and paste above.
+                ⚠️ This site has WAF protection active. Open site in browser → F12 DevTools → Application → Cookies → copy cookie string and paste above.
             </div>
 
             <button type="submit" class="btn-login" id="btnLogin">
@@ -264,13 +268,23 @@
         const credFields = document.getElementById('credFields');
         const cookieField = document.getElementById('cookieField');
         const wafNotice = document.getElementById('wafNotice');
+        const toggleModeBtn = document.getElementById('toggleModeBtn');
+
+        let forceCookieMode = false;
+
+        function toggleLoginMode(e) {
+            if (e) e.preventDefault();
+            forceCookieMode = !forceCookieMode;
+            updateFields();
+        }
 
         function updateFields() {
             const opt = siteSelect.options[siteSelect.selectedIndex];
-            const isWaf = opt.dataset.waf === 'true';
+            const isWaf = opt.dataset.waf === 'true' || forceCookieMode;
             credFields.style.display = isWaf ? 'none' : '';
             cookieField.style.display = isWaf ? '' : 'none';
             wafNotice.style.display = isWaf ? '' : 'none';
+            toggleModeBtn.textContent = isWaf ? '🔑 Switch to Auto Login Mode' : '🍪 Switch to Cookie Paste Mode (WAF Bypass)';
         }
         siteSelect.addEventListener('change', updateFields);
         updateFields();
@@ -281,7 +295,7 @@
             const errorBox = document.getElementById('errorBox');
             const site = siteSelect.value;
             const opt = siteSelect.options[siteSelect.selectedIndex];
-            const isWaf = opt.dataset.waf === 'true';
+            const isWaf = opt.dataset.waf === 'true' || forceCookieMode;
 
             const username = document.getElementById('usernameInput').value.trim();
             const password = document.getElementById('passwordInput').value.trim();
