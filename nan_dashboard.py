@@ -53,6 +53,11 @@ SITES = {
         "base": "https://spinjeet365.com",
         "launch": "https://spinjeet365.com/softswiss/launch?q=2409&type=slots",
     },
+    "khelo24bet7.com": {
+        "name": "Khelo24Bet7",
+        "base": "https://khelo24bet7.com",
+        "launch": "https://khelo24bet7.com/softswiss/launch?q=2409&type=slots",
+    },
 }
 
 GAME_BASE = "https://softswiss-ng.nucleusgaming.com"
@@ -175,6 +180,14 @@ def auto_login(site_key, username, password):
         login_req = urllib.request.Request(f"{base}/api2/login",
             data=login_data,
             headers=make_xhr_headers("application/x-www-form-urlencoded",
+                {"X-CSRF-TOKEN": csrf_meta or xsrf}),
+            method="POST")
+
+    elif site_key == "khelo24bet7.com":
+        login_data = json.dumps({"username": username, "password": password}).encode()
+        login_req = urllib.request.Request(f"{base}/api2/login",
+            data=login_data,
+            headers=make_xhr_headers("application/json",
                 {"X-CSRF-TOKEN": csrf_meta or xsrf}),
             method="POST")
 
