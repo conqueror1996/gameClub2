@@ -156,10 +156,91 @@ def auto_login(site_key, username, password):
 
     # Check for AWS WAF 202 Challenge or missing tokens
     is_waf_challenge = "awsWafCookieDomainList" in html or "gokuProps" in html
+
+    # AUTO-SOLVE: If AWS WAF challenge detected and no tokens, use headless browser
+    if not xsrf and not csrf_meta and is_waf_challenge:
+        import sys
+        print(f"[WAF-SOLVER] AWS WAF challenge detected on {site_key}, launching headless solver...", file=sys.stderr)
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True, args=[
+                    '--no-sandbox', '--disable-setuid-sandbox',
+                    '--disable-blink-features=AutomationControlled',
+                ])
+                ctx = browser.new_context(
+                    user_agent=STEALTH_UA,
+                    viewport={"width": 1920, "height": 1080},
+                )
+                page = ctx.new_page()
+                page.goto(base, wait_until="networkidle", timeout=30000)
+                # Wait for WAF challenge to auto-solve (usually 1-3 seconds)
+                page.wait_for_timeout(4000)
+
+                # Extract all cookies from browser
+                browser_cookies = ctx.cookies()
+                browser.close()
+
+            print(f"[WAF-SOLVER] Got {len(browser_cookies)} cookies from headless browser", file=sys.stderr)
+
+            # Feed cookies into urllib jar so the rest of auto_login works
+            import http.cookiejar
+            for bc in browser_cookies:
+                cookie = http.cookiejar.Cookie(
+                    version=0, name=bc['name'], value=bc['value'],
+                    port=None, port_specified=False,
+                    domain=bc.get('domain', site_key), domain_specified=True, domain_initial_dot=bc.get('domain','').startswith('.'),
+                    path=bc.get('path', '/'), path_specified=True,
+                    secure=bc.get('secure', False), expires=None, discard=True,
+                    comment=None, comment_url=None, rest={}, rfc2109=False,
+                )
+                jar.set_cookie(cookie)
+
+            # Re-extract XSRF from the new cookies
+            for c in jar:
+                if 'XSRF' in c.name.upper():
+                    xsrf = unquote(c.value)
+                    break
+
+            # Re-fetch homepage with WAF cookies now set
+            req2 = urllib.request.Request(base)
+            for k, v in BROWSER_HEADERS.items():
+                req2.add_header(k, v)
+            resp2 = opener.open(req2, timeout=30)
+            html2 = resp2.read().decode('utf-8', 'ignore')
+            csrf_m2 = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', html2)
+            if csrf_m2:
+                csrf_meta = csrf_m2.group(1)
+            if not csrf_meta:
+                # Try /mobile with WAF cookies
+                mob2 = urllib.request.Request(f"{base}/mobile")
+                for k, v in BROWSER_HEADERS.items():
+                    mob2.add_header(k, v)
+                mob_resp2 = opener.open(mob2, timeout=30)
+                mob_html2 = mob_resp2.read().decode('utf-8', 'ignore')
+                mob_m2 = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', mob_html2)
+                if mob_m2:
+                    csrf_meta = mob_m2.group(1)
+
+            # Update xsrf if we found csrf_meta
+            if not xsrf and csrf_meta:
+                xsrf = csrf_meta
+            if not xsrf:
+                for c in jar:
+                    if 'XSRF' in c.name.upper():
+                        xsrf = unquote(c.value)
+                        break
+
+            print(f"[WAF-SOLVER] After solving: xsrf={bool(xsrf)}, csrf_meta={bool(csrf_meta)}", file=sys.stderr)
+
+        except ImportError:
+            raise Exception(f"AWS WAF Challenge on {site_key} — Playwright not installed on server. Paste cookies manually.")
+        except Exception as waf_err:
+            print(f"[WAF-SOLVER] Failed: {waf_err}", file=sys.stderr)
+            raise Exception(f"AWS WAF Challenge on {site_key} — auto-solve failed: {waf_err}")
+
     if not xsrf and not csrf_meta:
-        if is_waf_challenge:
-            raise Exception(f"AWS WAF Security Challenge active on {site['name']} — Paste cookies from browser or try again in 5 seconds")
-        raise Exception(f"Could not connect to site security token for {site['name']} — please try again in 5 seconds")
+        raise Exception(f"Could not connect to site security token for {site_key} — please try again in 5 seconds")
 
     # Common XHR headers that look like a real browser AJAX call
     def make_xhr_headers(content_type, extra=None):
