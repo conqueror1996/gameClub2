@@ -206,7 +206,12 @@ def auto_login(site_key, username, password):
         elif status == 419:
             raise Exception("CSRF token mismatch — try again")
         elif status == 403:
-            raise Exception("Access forbidden")
+            try:
+                err = json.loads(body)
+                msg = err.get("message", "") or "Rate limited"
+                raise Exception(f"Site blocked request: {msg}")
+            except:
+                raise Exception("Too many attempts — click 'Clear All Cache & Data' and wait 30s")
         else:
             raise Exception(f"Login failed: HTTP {status}")
 
