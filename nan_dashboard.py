@@ -114,6 +114,20 @@ def auto_login(site_key, username, password):
     if csrf_m:
         csrf_meta = csrf_m.group(1)
 
+    # Cricash24: CSRF meta is on /mobile page, not homepage
+    if not csrf_meta and site_key == "cricash24.com":
+        try:
+            mob_req = urllib.request.Request(f"{base}/mobile")
+            for k, v in BROWSER_HEADERS.items():
+                mob_req.add_header(k, v)
+            mob_resp = opener.open(mob_req, timeout=30)
+            mob_html = mob_resp.read().decode('utf-8', 'ignore')
+            mob_m = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', mob_html)
+            if mob_m:
+                csrf_meta = mob_m.group(1)
+        except:
+            pass
+
     if not xsrf:
         raise Exception("Could not get XSRF token from site")
 
@@ -168,10 +182,13 @@ def auto_login(site_key, username, password):
             method="POST")
 
     elif site_key == "cricash24.com":
-        login_data = json.dumps({"email": username, "password": password}).encode()
+        login_data = urlencode({
+            "email": username, "password": password, "digits": "",
+        }).encode()
         login_req = urllib.request.Request(f"{base}/api2/v2/login",
             data=login_data,
-            headers=make_xhr_headers("application/json"),
+            headers=make_xhr_headers("application/x-www-form-urlencoded",
+                {"X-CSRF-Token": csrf_meta or xsrf}),
             method="POST")
 
     elif site_key == "khelo24match99.com":
