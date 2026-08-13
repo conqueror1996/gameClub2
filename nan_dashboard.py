@@ -192,11 +192,13 @@ def auto_login(site_key, username, password):
             method="POST")
 
     elif site_key == "khelo24match99.com":
-        login_data = json.dumps({"username": username, "email": username, "password": password}).encode()
+        login_data = urlencode({
+            "email": username, "password": password,
+        }).encode()
         login_req = urllib.request.Request(f"{base}/api2/login",
             data=login_data,
-            headers=make_xhr_headers("application/json",
-                {"X-CSRF-TOKEN": csrf_meta or xsrf}),
+            headers=make_xhr_headers("application/x-www-form-urlencoded",
+                {"X-CSRF-Token": csrf_meta or xsrf}),
             method="POST")
 
     else:
@@ -237,7 +239,7 @@ def auto_login(site_key, username, password):
 
         if resp_status in (201, 303, 403) or "reset your password" in msg.lower() or "invalid" in msg.lower():
             raise Exception(f"Invalid credentials: Check username & password for {site['name']}")
-        elif resp_status not in (200, True) and not resp_json.get("success"):
+        elif resp_status not in (200, 304, True) and not resp_json.get("success"):
             raise Exception(f"Login failed: {msg}")
     except json.JSONDecodeError:
         pass
