@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect, session
-import ssl, json, time, re, base64, urllib.request, urllib.error, os
+import ssl, json, time, re, base64, urllib.request, urllib.error, os, uuid
 from http.cookiejar import CookieJar
 from urllib.parse import unquote, urlencode
 import random
@@ -380,7 +380,13 @@ def parse_cards(s):
     return [c for c in [card_name(p) for p in s.strip().split()] if c]
 
 
-def get_state(key):
+def get_session_key():
+    """Return a unique key for the current user's session (site:user:uuid)."""
+    return session.get('state_key', 'anonymous')
+
+def get_state(key=None):
+    if key is None:
+        key = get_session_key()
     if key not in sessions_state:
         sessions_state[key] = {
             "balance": 0, "initial_balance": 0, "total_profit": 0,
@@ -444,7 +450,9 @@ def login():
 
         # Store in Flask session — each browser gets its own isolated session
         session.permanent = True
+        state_key = f"{site_key}:{username}:{uuid.uuid4().hex[:8]}"
         session['logged_in'] = True
+        session['state_key'] = state_key
         session['site'] = site_key
         session['site_name'] = site['name']
         session['cookies'] = cookies
@@ -452,7 +460,7 @@ def login():
         session['username'] = username
         session['sid'] = sid  # Game session ID — unique per player
 
-        st = get_state(username)
+        st = get_state()
         st['balance'] = balance
         st['initial_balance'] = balance
 
@@ -475,9 +483,10 @@ def logout():
 
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():
-    """Wipe all in-memory state and sessions."""
-    global sessions_state
-    sessions_state = {}
+    """Wipe current user's in-memory state and session."""
+    sk = session.get('state_key')
+    if sk and sk in sessions_state:
+        del sessions_state[sk]
     session.clear()
     return jsonify({"success": True, "message": "All cache and session data cleared"})
 
@@ -549,7 +558,7 @@ def bet():
         profit = round(balance - old_bal, 2)
         session['balance'] = balance
 
-        st = get_state(session.get('username', 'default'))
+        st = get_state()
         st['balance'] = balance
         st['rounds'] += 1
         st['total_profit'] = round(balance - st['initial_balance'], 2)
@@ -590,7 +599,7 @@ def get_balance():
         result, _ = place_bet(sid, "NaN 0 0")
         balance = float(result.get('BALANCE', 0))
         session['balance'] = balance
-        st = get_state(session.get('username', 'default'))
+        st = get_state()
         st['balance'] = balance
         return jsonify({"balance": balance, "total_profit": round(balance - st['initial_balance'], 2)})
     except Exception as e:
