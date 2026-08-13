@@ -114,8 +114,8 @@ def auto_login(site_key, username, password):
     if csrf_m:
         csrf_meta = csrf_m.group(1)
 
-    # Cricash24: CSRF meta is on /mobile page, not homepage
-    if not csrf_meta and site_key == "cricash24.com":
+    # Cricash24/SpinMatch99/SpinJeet365: CSRF meta is on /mobile page, not homepage
+    if not csrf_meta and site_key in ("cricash24.com", "spinmatch99.com", "spinjeet365.com"):
         try:
             mob_req = urllib.request.Request(f"{base}/mobile")
             for k, v in BROWSER_HEADERS.items():
@@ -174,16 +174,16 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/x-www-form-urlencoded"),
             method="POST")
 
-    elif site_key in ("playinhorse.com", "betinexchange88.com", "spinmatch99.com", "spinjeet365.com"):
+    elif site_key in ("playinhorse.com", "betinexchange88.com"):
         login_data = json.dumps({"username": username, "password": password}).encode()
         login_req = urllib.request.Request(f"{base}/api2/v2/login",
             data=login_data,
             headers=make_xhr_headers("application/json"),
             method="POST")
 
-    elif site_key == "cricash24.com":
+    elif site_key in ("cricash24.com", "spinmatch99.com", "spinjeet365.com"):
         login_data = urlencode({
-            "email": username, "password": password, "digits": "",
+            "email": username, "password": password,
         }).encode()
         login_req = urllib.request.Request(f"{base}/api2/v2/login",
             data=login_data,
