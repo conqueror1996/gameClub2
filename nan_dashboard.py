@@ -1,11 +1,15 @@
 from flask import Flask, render_template, request, jsonify, redirect, session
-import ssl, json, time, re, base64, urllib.request, urllib.error
+import ssl, json, time, re, base64, urllib.request, urllib.error, os
 from http.cookiejar import CookieJar
 from urllib.parse import unquote, urlencode
 import secrets, random
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)
+# Fixed key so sessions survive restarts/deploys — override via env var
+app.secret_key = os.environ.get('SECRET_KEY', 'fc_s3cr3t_k3y_f1ght_club_2026_x9z')
+app.config['SESSION_COOKIE_NAME'] = 'fc_session'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
 
 sslctx = ssl.create_default_context()
 sslctx.check_hostname = False
@@ -390,13 +394,15 @@ def login():
         result, _ = place_bet(sid, "NaN 0 0")
         balance = float(result.get('BALANCE', 0))
 
-        # Store in Flask session
+        # Store in Flask session — each browser gets its own isolated session
+        session.permanent = True
         session['logged_in'] = True
         session['site'] = site_key
         session['site_name'] = site['name']
         session['cookies'] = cookies
         session['balance'] = balance
         session['username'] = username
+        session['sid'] = sid  # Game session ID — unique per player
 
         st = get_state(username)
         st['balance'] = balance
