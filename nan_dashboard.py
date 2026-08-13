@@ -99,7 +99,7 @@ def auto_login(site_key, username, password):
     req = urllib.request.Request(base)
     for k, v in BROWSER_HEADERS.items():
         req.add_header(k, v)
-    resp = opener.open(req, timeout=15)
+    resp = opener.open(req, timeout=30)
     html = resp.read().decode('utf-8', 'ignore')
 
     # Extract XSRF from cookies
@@ -146,7 +146,7 @@ def auto_login(site_key, username, password):
             headers={"User-Agent": UA, "X-Requested-With": "XMLHttpRequest",
                      "Referer": f"{base}/", "Sec-Fetch-Dest": "empty",
                      "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-origin"})
-        lp_resp = opener.open(lp_req, timeout=10)
+        lp_resp = opener.open(lp_req, timeout=20)
         lp_html = lp_resp.read().decode('utf-8', 'ignore')
         token_m = re.search(r"_token:\s*'([^']+)'", lp_html)
         csrf_token = token_m.group(1) if token_m else (csrf_meta or xsrf)
@@ -183,7 +183,7 @@ def auto_login(site_key, username, password):
 
     # Step 3: Execute login
     try:
-        resp = opener.open(login_req, timeout=15)
+        resp = opener.open(login_req, timeout=30)
         body = resp.read().decode('utf-8', 'ignore')
         status = resp.status
     except urllib.error.HTTPError as e:
@@ -253,7 +253,7 @@ def get_token(site_key, cookies):
             "Sec-Fetch-Site": "same-origin",
             "Upgrade-Insecure-Requests": "1",
         })
-    resp = urllib.request.urlopen(req, context=sslctx, timeout=15)
+    resp = urllib.request.urlopen(req, context=sslctx, timeout=30)
     body = resp.read().decode('utf-8', 'ignore')
     om = re.search(r'options=([^"&\s]+)', body)
     if not om:
@@ -275,7 +275,7 @@ def get_sid(token):
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "cross-site",
     })
-    resp = urllib.request.urlopen(req, context=sslctx, timeout=15)
+    resp = urllib.request.urlopen(req, context=sslctx, timeout=30)
     html = resp.read().decode('utf-8', 'ignore')
     sid_m = re.search(r'SID=([^&"]+)', html)
     if not sid_m:
@@ -306,7 +306,7 @@ def place_bet(sid, bet_string):
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-site",
         }, method="POST")
-    resp = urllib.request.urlopen(req, context=sslctx, timeout=10)
+    resp = urllib.request.urlopen(req, context=sslctx, timeout=20)
     raw = resp.read().decode('utf-8', 'ignore')
     result = {}
     for part in raw.split('&'):
