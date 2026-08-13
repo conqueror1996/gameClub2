@@ -450,28 +450,30 @@ def bet():
         return jsonify({"error": "Not logged in"}), 401
 
     data = request.json
-    amount = data.get('amount', 1)
-    position = data.get('position', 'banker')
+    p_amt = float(data.get('player', 0) or 0)
+    b_amt = float(data.get('banker', 0) or 0)
+    t_amt = float(data.get('tie', 0) or 0)
 
-    try:
-        amount = float(amount)
-    except:
-        return jsonify({"error": "Invalid amount"}), 400
-    if amount <= 0:
-        return jsonify({"error": "Amount must be > 0"}), 400
+    if p_amt <= 0 and b_amt <= 0 and t_amt <= 0:
+        return jsonify({"error": "Enter amount on at least one position"}), 400
 
-    bet_map = {
-        'player': f"{amount} NaN 0",
-        'banker': f"NaN {amount} 0",
-        'tie':    f"NaN 0 {amount}",
-    }
-    if position not in bet_map:
-        return jsonify({"error": "Invalid position"}), 400
+    # Build bet string: "player banker tie" — NaN for positions with real bets
+    p_val = p_amt if p_amt > 0 else "NaN"
+    b_val = b_amt if b_amt > 0 else "NaN"
+    t_val = t_amt if t_amt > 0 else 0
+    bet_string = f"{p_val} {b_val} {t_val}"
+
+    # Label for history
+    parts = []
+    if p_amt > 0: parts.append(f"P:₹{p_amt}")
+    if b_amt > 0: parts.append(f"B:₹{b_amt}")
+    if t_amt > 0: parts.append(f"T:₹{t_amt}")
+    position_label = " + ".join(parts)
 
     try:
         token = get_token(session['site'], session['cookies'])
         sid = get_sid(token)
-        result, raw = place_bet(sid, bet_map[position])
+        result, raw = place_bet(sid, bet_string)
 
         if result.get('RESULT') != 'OK':
             return jsonify({"error": f"{result.get('RESULT')}: {unquote(result.get('ERRORTEXT', '?'))}"}), 400
@@ -481,9 +483,10 @@ def bet():
         winner = {'0': 'TIE', '1': 'PLAYER', '2': 'BANKER'}.get(winner_code, winner_code)
         payout = result.get('PAYOUT', '0')
 
-        won = (position == 'player' and winner_code == '1') or \
-              (position == 'banker' and winner_code == '2') or \
-              (position == 'tie' and winner_code == '0')
+        # Check if any of our bets won
+        won = (p_amt > 0 and winner_code == '1') or \
+              (b_amt > 0 and winner_code == '2') or \
+              (t_amt > 0 and winner_code == '0')
 
         old_bal = session.get('balance', 0)
         profit = round(balance - old_bal, 2)
@@ -497,7 +500,7 @@ def bet():
         else: st['losses'] += 1
 
         rd = {
-            "round": st['rounds'], "amount": amount, "position": position.upper(),
+            "round": st['rounds'], "position": position_label,
             "winner": winner, "payout": payout, "profit": profit,
             "balance": balance, "won": won, "time": time.strftime("%H:%M:%S"),
             "player_cards": parse_cards(result.get('PLAYERPOKER', '')),
