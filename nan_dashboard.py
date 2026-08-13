@@ -192,7 +192,7 @@ def auto_login(site_key, username, password):
             method="POST")
 
     elif site_key == "khelo24match99.com":
-        login_data = json.dumps({"username": username, "password": password}).encode()
+        login_data = json.dumps({"username": username, "email": username, "password": password}).encode()
         login_req = urllib.request.Request(f"{base}/api2/login",
             data=login_data,
             headers=make_xhr_headers("application/json",
