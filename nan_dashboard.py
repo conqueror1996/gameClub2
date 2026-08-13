@@ -94,12 +94,19 @@ def auto_login(site_key, username, password):
         "Priority": "u=0, i",
     }
 
-    # Step 1: GET main page to get XSRF token + session cookies
-    req = urllib.request.Request(base)
-    for k, v in BROWSER_HEADERS.items():
-        req.add_header(k, v)
-    resp = opener.open(req, timeout=30)
-    html = resp.read().decode('utf-8', 'ignore')
+    # Step 1: GET main page to get XSRF token + session cookies (with auto-retry)
+    html = ""
+    for attempt in range(2):
+        try:
+            req = urllib.request.Request(base)
+            for k, v in BROWSER_HEADERS.items():
+                req.add_header(k, v)
+            resp = opener.open(req, timeout=30)
+            html = resp.read().decode('utf-8', 'ignore')
+            break
+        except Exception:
+            if attempt == 1:
+                raise
 
     # Extract XSRF from cookies
     xsrf = None
@@ -127,8 +134,14 @@ def auto_login(site_key, username, password):
         except:
             pass
 
+    # Robust fallback: use csrf_meta or any session cookie if xsrf cookie not explicitly named
     if not xsrf:
-        raise Exception("Could not get XSRF token from site")
+        xsrf = csrf_meta
+    if not xsrf and jar:
+        xsrf = next((c.value for c in jar), None)
+
+    if not xsrf and not csrf_meta:
+        raise Exception("Could not connect to site security token — please try again in 5 seconds")
 
     # Common XHR headers that look like a real browser AJAX call
     def make_xhr_headers(content_type, extra=None):
