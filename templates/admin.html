@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Center — DualHedge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:        #080c14;
+            --surface:   #0d1424;
+            --card:      #111827;
+            --border:    #1e2a3a;
+            --border2:   #263042;
+            --text:      #e2e8f0;
+            --muted:     #4b5e78;
+            --dim:       #8899aa;
+            --green:     #22c55e;
+            --red:       #f87171;
+            --blue:      #60a5fa;
+            --amber:     #f59e0b;
+        }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .sections {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        @media(min-width: 900px) {
+            .sections {
+                grid-template-columns: 1.2fr 1fr;
+            }
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            color: var(--dim);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+            font-family: inherit;
+        }
+        .btn-green { background: var(--green); color: #fff; }
+        .btn-red { background: var(--red); color: #fff; }
+        .btn-blue { background: var(--blue); color: #fff; }
+        .btn-amber { background: var(--amber); color: #fff; }
+        .btn-muted { background: var(--border2); color: var(--text); }
+        .btn-group {
+            display: flex;
+            gap: 6px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+        .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+        .badge-red { background: rgba(248,113,113,0.15); color: var(--red); }
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .form-control {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+        }
+        .form-control:focus {
+            border-color: var(--border2);
+        }
+        .session-ua {
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--dim);
+            cursor: help;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1 class="title">🔐 Admin Control Center</h1>
+                <div style="color: var(--dim); font-size: 13px; margin-top: 4px;">Manage Access IDs and Monitor Sessions</div>
+            </div>
+            <button class="btn btn-muted" onclick="window.location.href='/'">Go to Dashboard</button>
+        </div>
+
+        <div class="sections">
+            <!-- Left Side: Access Keys -->
+            <div class="card">
+                <div class="card-title">
+                    <span>Authorized Access IDs</span>
+                </div>
+                
+                <div class="form-row">
+                    <input type="text" id="newKeyId" class="form-control" placeholder="New Key (e.g. DH-KEY-XYZ)...">
+                    <input type="text" id="newKeyLabel" class="form-control" placeholder="Label/Description...">
+                    <button class="btn btn-green" onclick="addAccessKey()">Add Key</button>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Access ID</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="keysTableBody">
+                        <tr><td colspan="4" style="text-align: center; color: var(--dim);">Loading keys...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Right Side: Active Sessions -->
+            <div class="card">
+                <div class="card-title">
+                    <span>Active Live Sessions</span>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Key / Label</th>
+                            <th>IP / Device</th>
+                            <th>Rounds / Profit</th>
+                            <th>Status / Balances</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody">
+                        <tr><td colspan="5" style="text-align: center; color: var(--dim);">Loading sessions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const secret = new URLSearchParams(window.location.search).get('secret');
+
+        async function fetchAdminData() {
+            try {
+                // Fetch Keys
+                const keysResp = await fetch(`/api/admin/keys?secret=${secret}`);
+                const keysData = await keysResp.json();
+                
+                if (keysData.success) {
+                    const keysBody = document.getElementById('keysTableBody');
+                    keysBody.innerHTML = '';
+                    Object.entries(keysData.keys).forEach(([key, info]) => {
+                        const tr = document.createElement('tr');
+                        const isLocked = info.status !== 'active';
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(info.label)}</strong></td>
+                            <td><code>${escapeHtml(key)}</code></td>
+                            <td><span class="badge ${isLocked ? 'badge-red' : 'badge-green'}">${info.status}</span></td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn ${isLocked ? 'btn-green' : 'btn-amber'}" onclick="toggleKeyStatus('${key}', '${info.status}')">
+                                        ${isLocked ? 'Unlock' : 'Lock'}
+                                    </button>
+                                    <button class="btn btn-red" onclick="deleteKey('${key}')">Delete</button>
+                                </div>
+                            </td>
+                        `;
+                        keysBody.appendChild(tr);
+                    });
+                }
+
+                // Fetch Sessions
+                const sessResp = await fetch(`/api/admin/active_sessions?secret=${secret}`);
+                const sessData = await sessResp.json();
+                
+                if (sessData.success) {
+                    const sessBody = document.getElementById('sessionsTableBody');
+                    sessBody.innerHTML = '';
+                    if (sessData.sessions.length === 0) {
+                        sessBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--dim);">No active sessions.</td></tr>';
+                    } else {
+                        sessData.sessions.forEach(sess => {
+                            const tr = document.createElement('tr');
+                            const profitColor = sess.profit > 0 ? 'var(--green)' : (sess.profit < 0 ? 'var(--red)' : 'var(--text)');
+                            const statusColor = sess.status === 'Armed' || sess.status === 'PLACING BETS' ? 'badge-green' : 'btn-muted';
+                            
+                            tr.innerHTML = `
+                                <td>
+                                    <strong>${escapeHtml(sess.label)}</strong><br>
+                                    <span style="font-size: 11px; color: var(--dim); font-family: monospace;">${escapeHtml(sess.access_id)}</span>
+                                </td>
+                                <td>
+                                    <code>${escapeHtml(sess.ip)}</code><br>
+                                    <div class="session-ua" title="${escapeHtml(sess.user_agent)}">${escapeHtml(sess.user_agent)}</div>
+                                </td>
+                                <td>
+                                    <span>${sess.rounds} rounds</span><br>
+                                    <span style="color: ${profitColor}; font-weight: 600;">₹${sess.profit.toFixed(2)}</span>
+                                </td>
+                                <td>
+                                    <span class="badge ${statusColor}">${sess.status}</span><br>
+                                    <span style="font-size: 11px; color: var(--dim);">${escapeHtml(sess.balances)}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-red" onclick="terminateSession('${sess.session_token}')">Kick</button>
+                                </td>
+                            `;
+                            sessBody.appendChild(tr);
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching admin data:', err);
+            }
+        }
+
+        async function addAccessKey() {
+            const id = document.getElementById('newKeyId').value.trim();
+            const label = document.getElementById('newKeyLabel').value.trim();
+            if (!id || !label) return alert('Please enter both Key ID and Label');
+
+            try {
+                const response = await fetch(`/api/admin/keys/add?secret=${secret}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: id, label: label })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    document.getElementById('newKeyId').value = '';
+                    document.getElementById('newKeyLabel').value = '';
+                    fetchAdminData();
+                } else {
+                    alert(res.message);
+                }
+            } catch (err) {
+                alert('Request failed');
+            }
+        }
+
+        async function toggleKeyStatus(key, currentStatus) {
+            const nextStatus = currentStatus === 'active' ? 'locked' : 'active';
+            try {
+                const response = await fetch(`/api/admin/keys/status?secret=${secret}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: key, status: nextStatus })
+                });
+                const res = await response.json();
+                if (res.success) fetchAdminData();
+            } catch (err) {
+                alert('Request failed');
+            }
+        }
+
+        async function deleteKey(key) {
+            if (!confirm(`Are you sure you want to delete Key ${key}?`)) return;
+            try {
+                const response = await fetch(`/api/admin/keys/delete?secret=${secret}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: key })
+                });
+                const res = await response.json();
+                if (res.success) fetchAdminData();
+            } catch (err) {
+                alert('Request failed');
+            }
+        }
+
+        async function terminateSession(token) {
+            if (!confirm('Are you sure you want to terminate this session? User will be kicked instantly.')) return;
+            try {
+                const response = await fetch(`/api/admin/sessions/terminate?secret=${secret}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_token: token })
+                });
+                const res = await response.json();
+                if (res.success) fetchAdminData();
+            } catch (err) {
+                alert('Request failed');
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Initial fetch and set interval
+        fetchAdminData();
+        setInterval(fetchAdminData, 4000);
+    </script>
+</body>
+</html>

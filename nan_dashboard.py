@@ -489,12 +489,11 @@ def logout():
 
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():
-    """Wipe current user's in-memory state and session."""
-    sk = session.get('state_key')
-    if sk and sk in sessions_state:
-        del sessions_state[sk]
-    session.clear()
-    return jsonify({"success": True, "message": "All cache and session data cleared"})
+    """Nuclear wipe: ALL in-memory state, session cookies, everything."""
+    global sessions_state
+    sessions_state = {}  # Wipe ALL users' game state
+    session.clear()      # Wipe Flask session cookie
+    return jsonify({"success": True, "message": "All cache, sessions and data wiped completely"})
 
 
 @app.route('/api/bet', methods=['POST'])

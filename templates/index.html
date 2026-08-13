@@ -1,0 +1,3276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>7Mojo Dual Hedge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #080c14;
+            --surface:   #0d1424;
+            --card:      #111827;
+            --border:    #1e2a3a;
+            --border2:   #263042;
+            --text:      #e2e8f0;
+            --muted:     #4b5e78;
+            --dim:       #8899aa;
+            --green:     #22c55e;
+            --green-dim: #16a34a;
+            --green-bg:  rgba(34,197,94,0.08);
+            --green-bdr: rgba(34,197,94,0.25);
+            --cyan:      #22d3ee;
+            --cyan-dim:  #0891b2;
+            --cyan-bg:   rgba(34,211,238,0.08);
+            --cyan-bdr:  rgba(34,211,238,0.25);
+            --amber:     #f59e0b;
+            --amber-bg:  rgba(245,158,11,0.08);
+            --amber-bdr: rgba(245,158,11,0.25);
+            --blue:      #60a5fa;
+            --blue-bg:   rgba(96,165,250,0.08);
+            --blue-bdr:  rgba(96,165,250,0.25);
+            --red:       #f87171;
+            --red-bg:    rgba(248,113,113,0.08);
+            --red-bdr:   rgba(248,113,113,0.25);
+        }
+
+        html { height: 100%; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            font-size: 13px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── SCROLLBAR ─── */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+        /* ─── LOGIN OVERLAY ─── */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .login-sidebar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 320px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-height: 580px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--cyan);
+            border-bottom: 1px solid var(--border2);
+            padding-bottom: 10px;
+            margin-bottom: 4px;
+        }
+        .history-item {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border2);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .history-item:hover {
+            background: rgba(0,229,255,0.05);
+            border-color: rgba(0,229,255,0.3);
+            transform: translateY(-2px);
+        }
+        .history-item.active-recent {
+            border-color: rgba(0,229,255,0.4);
+            background: rgba(0,229,255,0.06);
+            box-shadow: 0 0 12px rgba(0,229,255,0.08);
+        }
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 500;
+            padding-right: 20px;
+        }
+        .history-domain {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text);
+            word-break: break-all;
+        }
+        .history-users {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .history-balances {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 4px;
+            padding-top: 6px;
+            border-top: 1px dashed var(--border2);
+        }
+        .history-bal-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .history-bal-badge.p1 {
+            background: rgba(0,229,255,0.1);
+            color: var(--cyan);
+        }
+        .history-bal-badge.p2 {
+            background: rgba(168,85,247,0.1);
+            color: rgb(192, 132, 252);
+        }
+        .history-delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: var(--red);
+            opacity: 0.6;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .history-delete-btn:hover {
+            opacity: 1;
+            background: rgba(244,67,54,0.15);
+        }
+
+        .login-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 580px;
+            padding: 36px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .login-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--green-bg), var(--cyan-bg));
+            border: 1px solid var(--green-bdr);
+            border-radius: 12px;
+            margin-bottom: 14px;
+        }
+
+        .login-logo svg {
+            width: 20px;
+            height: 20px;
+            color: var(--green);
+        }
+
+        .login-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.4px;
+        }
+
+        .login-sub {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .cred-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 500px) {
+            .cred-grid { grid-template-columns: 1fr; }
+        }
+
+        .cred-block {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .cred-block.player { border-top: 2px solid var(--green-dim); }
+        .cred-block.banker { border-top: 2px solid var(--cyan-dim); }
+
+        .cred-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .cred-label.player { color: var(--green); }
+        .cred-label.banker { color: var(--cyan); }
+
+        .field { margin-bottom: 10px; }
+        .field:last-child { margin-bottom: 0; }
+
+        .field label {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .field input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 8px;
+            padding: 8px 11px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .field input:focus { border-color: var(--green); }
+        .cred-block.banker .field input:focus { border-color: var(--cyan); }
+
+        .field input::placeholder { color: var(--muted); opacity: 0.6; }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-full { width: 100%; padding: 12px 20px; font-size: 13px; }
+
+        .btn-primary {
+            background: var(--green);
+            color: #000;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #16a34a;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--red);
+            border: 1px solid var(--red-bdr);
+            padding: 10px 18px;
+        }
+        .btn-danger:hover    { background: #ef4444; }
+        .btn-danger:active   { transform: scale(.97); }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border2);
+            color: var(--muted);
+            padding: 10px 18px;
+            font-size: 12px;
+        }
+        .btn-outline:hover { border-color: var(--dim); color: var(--text); background: rgba(255,255,255,0.03); }
+
+        .btn-armed {
+            background: var(--amber);
+            color: #000;
+            animation: armed-pulse 2s ease-in-out infinite;
+        }
+
+        .btn-placing {
+            background: var(--blue);
+            color: #000;
+        }
+
+        .btn-placed {
+            background: var(--green);
+            color: #000;
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--red);
+            border: 1px solid var(--red-bdr);
+            padding: 10px 18px;
+        }
+        .btn-danger:hover:not(:disabled) { background: var(--red-bg); }
+
+        @keyframes armed-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+            50% { box-shadow: 0 0 0 6px rgba(245,158,11,0.12); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ─── STATUS MESSAGES ─── */
+        .status-msg {
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--dim);
+            text-align: center;
+        }
+
+        .status-msg.error {
+            background: var(--red-bg);
+            border-color: var(--red-bdr);
+            color: var(--red);
+        }
+
+        /* ─── DASHBOARD ─── */
+        #dashboard {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 20px 40px;
+        }
+
+        /* ─── TOPBAR ─── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .topbar-brand {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+
+        .topbar-brand span {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .bal-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bal-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 18px;
+            text-align: center;
+            min-width: 110px;
+        }
+
+        .bal-card.player { border-top: 2px solid var(--green-dim); }
+        .bal-card.banker { border-top: 2px solid var(--cyan-dim); }
+
+        .bal-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .bal-amount {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-top: 3px;
+        }
+
+        .bal-card.player .bal-amount { color: var(--green); }
+        .bal-card.banker .bal-amount { color: var(--cyan); }
+
+        /* ─── BET CONTROL ─── */
+        .bet-control {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+        }
+
+        .bet-control-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .bet-control-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+        }
+
+        .bet-control-row-1 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+
+        .bet-control-row-2 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* ─── STATUS STRIP ─── */
+        .status-strip {
+            margin-top: 14px;
+            padding: 12px 16px;
+            border-radius: 9px;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .status-strip.armed {
+            background: var(--amber-bg);
+            border-color: var(--amber-bdr);
+        }
+        .status-strip.placing {
+            background: var(--blue-bg);
+            border-color: var(--blue-bdr);
+        }
+        .status-strip.placed {
+            background: var(--green-bg);
+            border-color: var(--green-bdr);
+        }
+
+        .strip-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .strip-indicator.amber { background: var(--amber); animation: blink 1.2s ease-in-out infinite; }
+        .strip-indicator.blue  { background: var(--blue);  animation: blink 0.8s ease-in-out infinite; }
+        .strip-indicator.green { background: var(--green); }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .strip-text { flex: 1; }
+        .strip-text strong { color: var(--text); font-weight: 600; }
+        .strip-text p { color: var(--dim); margin-top: 1px; font-size: 11px; }
+
+        /* ─── TABLES SECTION ─── */
+        .tables-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 700px) {
+            .tables-row { grid-template-columns: 1fr; }
+        }
+
+        .tables-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .tables-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-head-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        .panel-dot.green { background: var(--green); }
+        .panel-dot.cyan  { background: var(--cyan); }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+        }
+
+        .panel-title.green { color: var(--green); }
+        .panel-title.cyan  { color: var(--cyan); }
+
+        .panel-count {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--muted);
+            background: var(--card);
+            border: 1px solid var(--border2);
+            border-radius: 20px;
+            padding: 2px 9px;
+        }
+
+        .tables-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 80px;
+        }
+
+        .empty-msg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* ─── TABLE CARD ─── */
+        .table-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            transition: border-color 0.2s;
+        }
+
+        .table-card:hover { border-color: var(--border2); }
+
+        .table-card.open {
+            border-color: var(--green-bdr);
+            background: linear-gradient(135deg, var(--green-bg), var(--card));
+        }
+
+        .table-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .table-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .round-id {
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 2px 7px;
+        }
+
+        /* ─── STATUS PILL ─── */
+        .pill {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            padding: 3px 10px;
+            border: 1px solid;
+        }
+
+        .pill-open    { color: var(--green); background: var(--green-bg); border-color: var(--green-bdr); animation: open-glow 2s ease-in-out infinite; }
+        .pill-dealing { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-bdr); }
+        .pill-conn    { color: var(--blue);  background: var(--blue-bg);  border-color: var(--blue-bdr); }
+        .pill-default { color: var(--muted); background: transparent;     border-color: var(--border2); }
+        .pill-confirm { color: #4ade80; background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.35); }
+        .pill-warn    { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-bdr); }
+        .pill-reject  { color: var(--red);   background: var(--red-bg);   border-color: var(--red-bdr); }
+        .pill-fail    { color: #fc6a6a;      background: rgba(252,106,106,0.08); border-color: rgba(252,106,106,0.3); }
+
+        @keyframes open-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+            50% { box-shadow: 0 0 8px rgba(34,197,94,0.25); }
+        }
+
+        /* ─── MINI LOADER (per-table waiting indicator) ─── */
+        .mini-loader {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 0;
+        }
+        .mini-loader span {
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            background: var(--blue);
+            animation: mini-bounce 1.2s ease-in-out infinite;
+        }
+        .mini-loader span:nth-child(2) { animation-delay: 0.15s; }
+        .mini-loader span:nth-child(3) { animation-delay: 0.3s; }
+        .mini-loader-text {
+            font-size: 9px;
+            color: var(--muted);
+            margin-left: 5px;
+            letter-spacing: 0.3px;
+        }
+        @keyframes mini-bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* ─── RESULT PANEL ─── */
+        .result-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .result-head {
+            padding: 14px 18px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-head-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--muted);
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 16px;
+            gap: 12px;
+        }
+
+        .result-cell {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .result-cell.highlight {
+            border-color: var(--green-bdr);
+            background: var(--green-bg);
+        }
+
+        .result-cell.highlight.loss {
+            border-color: var(--red-bdr);
+            background: var(--red-bg);
+        }
+
+        .result-cell-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .result-cell-value {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .result-cell-value.profit { color: var(--green); }
+        .result-cell-value.loss   { color: var(--red); }
+        .result-cell-value.big    { font-size: 24px; }
+
+        .result-cell-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .result-footer {
+            padding: 10px 16px 14px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* ─── TOAST SYSTEM ─── */
+        #toast-wrap {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--card);
+            border: 1px solid var(--border2);
+            border-radius: 12px;
+            padding: 14px 18px;
+            min-width: 280px;
+            max-width: 360px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transform: translateX(calc(100% + 24px));
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: all;
+        }
+
+        .toast.visible { transform: translateX(0); }
+        .toast.leaving { transform: translateX(calc(100% + 24px)); transition: transform 0.25s ease-in; }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-icon svg { width: 16px; height: 16px; }
+
+        .toast-icon.placing { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-bdr); }
+        .toast-icon.placed  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+        .toast-icon.win     { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+        .toast-icon.loss    { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-bdr); }
+        .toast-icon.warn    { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr); }
+        .toast-icon.info    { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-bdr); }
+
+        .toast-body { flex: 1; }
+
+        .toast-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .toast-desc {
+            font-size: 11px;
+            color: var(--dim);
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+
+        /* ─── LOADER DOTS ─── */
+        .dots {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .dots i {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: dot-anim 1.2s ease-in-out infinite;
+        }
+
+        .dots i:nth-child(2) { animation-delay: 0.2s; }
+        .dots i:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dot-anim {
+            0%, 80%, 100% { transform: scale(0.5); opacity: 0.35; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ─── SVG ICONS ─── */
+        .icon { display: inline-block; vertical-align: middle; }
+
+        /* ─── RESULT BADGE (on table card) ─── */
+        .result-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            border-radius: 6px;
+            padding: 2px 8px;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+        .result-badge.player-win { color: #4ade80; background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.3); }
+        .result-badge.banker-win { color: #60a5fa; background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); }
+        .result-badge.tie-win    { color: #facc15; background: rgba(250,204,21,0.1); border-color: rgba(250,204,21,0.3); }
+        .result-badge.unknown-win{ color: var(--muted); background: transparent; border-color: var(--border2); }
+
+        .result-score {
+            font-size: 10px;
+            color: var(--dim);
+            font-family: 'Courier New', monospace;
+        }
+
+        /* ─── LIVE RESULTS FEED ─── */
+        .results-feed {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .results-feed-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-feed-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--muted);
+        }
+
+        .results-feed-body {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 8px 12px;
+        }
+
+        .result-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        .result-row:hover { background: var(--card); }
+
+        .result-row-time {
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            flex-shrink: 0;
+            min-width: 55px;
+        }
+
+        .result-row-table {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result-row-account {
+            font-size: 10px;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+        /* ════════════════════════════════════════════════════
+           MOBILE RESPONSIVE — 768px and below
+        ════════════════════════════════════════════════════ */
+
+        /* ── Touch targets ── */
+        @media (max-width: 768px) {
+            body { font-size: 14px; }
+
+            /* ── Login ── */
+            #login-overlay {
+                align-items: flex-start !important;
+                padding-top: 24px !important;
+                padding-bottom: 24px !important;
+            }
+            #login-overlay > div {
+                flex-direction: column !important;
+                gap: 16px !important;
+                padding: 10px;
+            }
+            .login-sidebar {
+                width: 100% !important;
+                max-width: 100% !important;
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                margin-bottom: 8px !important;
+                max-height: unset !important;
+                order: 1 !important;
+            }
+            .sidebar-title {
+                border: none !important;
+                padding-bottom: 4px !important;
+                margin-bottom: 6px !important;
+                font-size: 10px !important;
+            }
+            #history-items-container {
+                flex-direction: row !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                max-height: unset !important;
+                padding: 4px 2px !important;
+                gap: 12px !important;
+                display: flex !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            #history-items-container::-webkit-scrollbar {
+                height: 4px;
+            }
+            #history-items-container::-webkit-scrollbar-thumb {
+                background: var(--border);
+                border-radius: 2px;
+            }
+            .history-item {
+                width: 260px !important;
+                flex-shrink: 0 !important;
+                margin-bottom: 0 !important;
+            }
+            .login-box {
+                padding: 24px 18px;
+                border-radius: 12px;
+                width: 100% !important;
+                max-width: 100% !important;
+                order: 2 !important;
+            }
+            .login-title { font-size: 18px; }
+            .cred-grid { grid-template-columns: 1fr; gap: 10px; }
+            .field input, select {
+                font-size: 16px !important; /* prevents iOS zoom on focus */
+                padding: 11px 13px;
+            }
+            .btn-full { padding: 14px 20px; font-size: 14px; }
+
+            /* ── Dashboard ── */
+            #dashboard { padding: 12px 12px 60px; }
+
+            /* ── Topbar ── */
+            .topbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding-bottom: 14px;
+                margin-bottom: 14px;
+            }
+            .topbar-brand { text-align: center; font-size: 16px; }
+            .bal-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .bal-card {
+                min-width: unset;
+                padding: 10px 12px;
+            }
+            .bal-amount { font-size: 15px; }
+
+            /* ── Bet control ── */
+            .bet-control { padding: 12px; margin-bottom: 14px; }
+            .bet-control-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .bet-control-title { text-align: center; }
+            
+            .bet-control-row-1 {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .bet-control-row-1 #system-signal-widget {
+                margin-left: 0 !important;
+                justify-content: center;
+                width: 100%;
+            }
+            .bet-control-row-2 {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .bet-control-row-2 .bet-sizing-container {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .bet-control-row-2 .bet-sizing-container select {
+                flex-grow: 1;
+            }
+            
+            .btn-row {
+                width: 100%;
+                margin-left: 0 !important;
+                display: grid;
+                grid-template-columns: 1fr auto auto;
+                gap: 8px;
+            }
+            .btn-row > div {
+                width: 100%;
+            }
+            .btn-row .btn { padding: 11px 8px; font-size: 12px; }
+            #arm-btn  { width: 100% !important; }
+            #disarm-btn { width: 100% !important; }
+
+            .status-strip { flex-wrap: wrap; gap: 8px; font-size: 11px; padding: 10px 12px; }
+
+            /* ── Tables ── */
+            .tables-row {
+                grid-template-columns: 1fr !important;
+                gap: 10px;
+                margin-bottom: 12px;
+            }
+
+            /* AB section header */
+            .tables-row > div[style*="width:100%"] {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .table-card {
+                padding: 10px 12px;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .table-name { font-size: 12px; min-width: 0; }
+            .table-meta { gap: 6px; flex-wrap: wrap; }
+            .round-id { font-size: 9px; padding: 2px 5px; }
+            .pill { font-size: 9px; padding: 2px 8px; }
+
+            /* ── Result panel ── */
+            .result-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                padding: 12px;
+            }
+            .result-cell-value { font-size: 16px; }
+            .result-cell-value.big { font-size: 20px; }
+
+            /* ── Results feed ── */
+            .results-feed-body { max-height: 220px; }
+            .result-row {
+                gap: 6px;
+                padding: 7px 8px;
+                flex-wrap: wrap;
+            }
+            .result-row-time { min-width: 48px; font-size: 9px; }
+            .result-row-table { font-size: 10px; min-width: 60px; }
+            .result-score { font-size: 9px; }
+            .result-row-account { font-size: 9px; }
+
+            /* ── Toast ── */
+            #toast-wrap {
+                bottom: 12px;
+                right: 8px;
+                left: 8px;
+            }
+            .toast {
+                min-width: unset;
+                max-width: 100%;
+                width: 100%;
+                transform: translateY(calc(100% + 24px));
+                transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            }
+            .toast.visible { transform: translateY(0); }
+            .toast.leaving { transform: translateY(calc(100% + 24px)); transition: transform 0.25s ease-in; }
+
+            /* ── AB bet strip ── */
+            #ab-bet-strip > div {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 6px !important;
+            }
+        }
+
+        /* ════════════════════════════════════════════════════
+           SMALL MOBILE — 480px and below
+        ════════════════════════════════════════════════════ */
+        @media (max-width: 480px) {
+            body { font-size: 13px; }
+            #dashboard { padding: 10px 10px 60px; }
+
+            .topbar-brand { font-size: 14px; }
+            .bal-amount { font-size: 14px; }
+            .bal-card { padding: 8px 10px; }
+            .bal-label { font-size: 9px; }
+
+            .result-grid { grid-template-columns: 1fr; }
+            .result-cell-value.big { font-size: 18px; }
+
+            .btn-row {
+                grid-template-columns: 1fr;
+            }
+            #arm-btn, #disarm-btn { grid-column: auto; }
+            .btn-row .btn { padding: 12px; font-size: 13px; }
+
+            .tables-panel-head { padding: 10px 12px 8px; }
+            .panel-title { font-size: 10px; }
+            .tables-body { padding: 8px; gap: 6px; min-height: 60px; }
+
+            .table-card { padding: 8px 10px; }
+            .table-name { font-size: 11px; }
+
+            .login-box { padding: 20px 14px; }
+        }
+
+        /* ─── REALTIME MOBILE NETWORK SIGNAL ─── */
+        /* Game Switcher Tabs */
+        .game-tab {
+            font-size: 11px;
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.3);
+            color: var(--muted);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .game-tab:hover {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+        }
+        .game-tab.active {
+            background: linear-gradient(135deg, var(--cyan), #1abc9c);
+            color: #000;
+            border-color: var(--cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .network-signal-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            height: fit-content;
+        }
+        .network-bars {
+            display: inline-flex;
+            align-items: flex-end;
+            gap: 2.5px;
+            width: 20px;
+            height: 14px;
+        }
+        .network-bars .bar {
+            width: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 1px;
+            transition: background 0.3s ease, height 0.3s ease;
+        }
+        .network-bars .bar-1 { height: 30%; }
+        .network-bars .bar-2 { height: 50%; }
+        .network-bars .bar-3 { height: 75%; }
+        .network-bars .bar-4 { height: 100%; }
+
+        /* Color classes depending on RTT latency */
+        .network-signal-container.excellent .bar { background: #2ecc71; }
+        
+        .network-signal-container.good .bar-1,
+        .network-signal-container.good .bar-2,
+        .network-signal-container.good .bar-3 { background: #2ecc71; }
+        .network-signal-container.good .bar-4 { background: rgba(255, 255, 255, 0.15); }
+
+        .network-signal-container.fair .bar-1,
+        .network-signal-container.fair .bar-2 { background: #f1c40f; }
+        .network-signal-container.fair .bar-3,
+        .network-signal-container.fair .bar-4 { background: rgba(255, 255, 255, 0.15); }
+
+        .network-signal-container.poor .bar-1 { background: #e74c3c; }
+        .network-signal-container.poor .bar-2,
+        .network-signal-container.poor .bar-3,
+        .network-signal-container.poor .bar-4 { background: rgba(255, 255, 255, 0.15); }
+
+        .network-signal-container.disconnected .bar { background: rgba(255, 255, 255, 0.15); }
+        
+        .latency-value {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text);
+            font-family: monospace;
+            letter-spacing: 0.2px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════ PAGE LOADER ════════════════════ -->
+<div id="page-loader" style="position: fixed; inset: 0; background: #0a0c12; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 300; transition: opacity 0.4s ease;">
+    <style>
+        @keyframes page-spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <div style="width: 48px; height: 48px; border: 3px solid rgba(0,229,255,0.1); border-top-color: #00e5ff; border-radius: 50%; animation: page-spin 1s linear infinite; margin-bottom: 16px;"></div>
+    <div id="page-loader-text" style="font-size: 13px; color: #9ca3af; font-weight: 500; letter-spacing: 0.5px; font-family: sans-serif; text-align: center; padding: 0 20px; line-height: 1.5;">Connecting to session...</div>
+    <button id="page-loader-skip" style="display: none; margin-top: 24px; font-size: 11px; color: #00e5ff; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.3); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;" onclick="bypassLoader()">Skip / Bypass</button>
+</div>
+
+<div id="relogin-overlay" style="display: none; position: fixed; inset: 0; background: rgba(10,12,18,0.95); backdrop-filter: blur(10px); z-index: 199; align-items: center; justify-content: center; padding: 16px;">
+    <div class="login-box" style="max-width: 420px; border: 1px solid rgba(244,67,54,0.3); box-shadow: 0 8px 32px rgba(244,67,54,0.15); position: relative;">
+        <button type="button" onclick="closeBurnedModal()" title="Close banner" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #8899aa; font-size: 14px; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.4)';" onmouseout="this.style.color='#8899aa'; this.style.borderColor='rgba(255,255,255,0.15)';">✕</button>
+        <div class="login-header">
+            <div class="login-logo" style="background: linear-gradient(135deg, rgba(244,67,54,0.2), rgba(244,67,54,0.05)); border: 1px solid rgba(244,67,54,0.4); margin: 0 auto 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 50%;">
+                🔥
+            </div>
+            <div class="login-title" id="relogin-title" style="color:#ef5350;">Account Burned</div>
+            <div class="login-sub" id="relogin-sub" style="font-size:12px; opacity:0.8; margin-top:8px;">Account has negative balance. Connect new ID.</div>
+        </div>
+
+        <div class="field" style="margin-bottom: 16px; display: flex; flex-direction: column; text-align: left;">
+            <label style="font-size: 10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#ef5350; margin-bottom:8px;">New Username</label>
+            <input type="text" id="relogin-username" placeholder="Enter username" autocomplete="off" style="width:100%; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:10px 14px; color:var(--text); font-size:13px; font-family:inherit; outline:none;">
+        </div>
+        <div class="field" style="margin-bottom: 24px; display: flex; flex-direction: column; text-align: left;">
+            <label style="font-size: 10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#ef5350; margin-bottom:8px;">Password</label>
+            <input type="password" id="relogin-password" placeholder="Enter password" style="width:100%; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:10px 14px; color:var(--text); font-size:13px; font-family:inherit; outline:none;">
+        </div>
+
+        <div id="relogin-error" style="display: none; background: rgba(244,67,54,0.1); border: 1px solid rgba(244,67,54,0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; color: #ef5350; font-size: 12px; font-weight: 500; text-align: left;">
+            <span id="relogin-error-text"></span>
+        </div>
+
+        <div id="relogin-status" style="display: none; background: rgba(0,229,255,0.06); border: 1px solid rgba(0,229,255,0.15); border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; color: var(--cyan); font-size: 12px; font-weight: 500; text-align: center;">
+            <span id="relogin-status-text">Connecting new account...</span>
+        </div>
+
+        <button id="relogin-btn" class="btn btn-full" style="background: linear-gradient(135deg, #ef5350, #d32f2f); color: white; border: none; font-weight: 700; width: 100%; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 14px;" onclick="doRelogin()">Connect New Account</button>
+    </div>
+</div>
+
+<!-- ════════════════════ LOGIN ════════════════════ -->
+<div id="login-overlay">
+    <div style="display: flex; gap: 24px; max-width: 960px; width: 100%; align-items: stretch; justify-content: center; flex-wrap: wrap;">
+        <!-- Sidebar -->
+        <div class="login-sidebar" id="login-history-sidebar">
+            <div class="sidebar-title">Recent Connections</div>
+            <div id="history-items-container" style="display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; max-height: 480px; padding-right: 4px;">
+                <div style="text-align: center; color: var(--muted); font-size: 11px; margin-top: 40px; font-family: inherit;">No saved sessions yet</div>
+            </div>
+        </div>
+
+        <!-- Login Box -->
+        <div class="login-box" style="flex: 1; max-width: 580px; margin: 0;">
+
+        <div class="login-header">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+            </div>
+            <div class="login-title">7Mojo Dual Hedge</div>
+            <div class="login-sub" id="login-sub-text">Connect two accounts for Twin Andar Bahar hedging</div>
+        </div>
+
+        <!-- Game Mode Selector -->
+        <div class="field" style="margin-bottom: 20px;">
+            <label style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--cyan); margin-bottom:12px;">Select Game Mode</label>
+            <div style="display:flex; gap:8px;">
+                <button id="login-tab-ab" class="game-tab active" style="flex:1; padding:10px; font-size:13px;" onclick="selectLoginGame('andar_bahar')">
+                    🃏 Andar Bahar
+                </button>
+                <button id="login-tab-rl" class="game-tab" style="flex:1; padding:10px; font-size:13px;" onclick="selectLoginGame('roulette')">
+                    🎰 Roulette
+                </button>
+            </div>
+        </div>
+
+        <div class="cred-grid">
+            <div class="cred-block player">
+                <div class="cred-label player" id="login-cred-label1">Account 1 — Andar</div>
+                <div class="field">
+                    <label>Site Domain</label>
+                    <select id="baseUrl1" style="width:100%; background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:6px 10px; color:var(--text); font-size:12px; font-family:inherit; outline:none; cursor:pointer;">
+                        <option value="https://starexch555.com">https://starexch555.com</option>
+                        <option value="https://cricmatch247.com">https://cricmatch247.com</option>
+                        <option value="https://khelstake24.com">https://khelstake24.com</option>
+                        <option value="https://playcric365.com">https://playcric365.com</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" id="user1" placeholder="Enter username" autocomplete="off">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" id="pass1" placeholder="Enter password">
+                </div>
+            </div>
+
+            <div class="cred-block banker">
+                <div class="cred-label banker" id="login-cred-label2">Account 2 — Bahar</div>
+                <div class="field">
+                    <label>Site Domain</label>
+                    <select id="baseUrl2" style="width:100%; background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:6px 10px; color:var(--text); font-size:12px; font-family:inherit; outline:none; cursor:pointer;">
+                        <option value="https://starexch555.com">https://starexch555.com</option>
+                        <option value="https://cricmatch247.com" selected>https://cricmatch247.com</option>
+                        <option value="https://khelstake24.com">https://khelstake24.com</option>
+                        <option value="https://playcric365.com">https://playcric365.com</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" id="user2" placeholder="Enter username" autocomplete="off">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" id="pass2" placeholder="Enter password">
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button id="login-btn" class="btn btn-primary" style="flex: 2; padding: 12px; font-weight: 700;" onclick="doLogin()">
+                Connect Both Accounts
+            </button>
+            <button id="login-clear-cache-btn" class="btn btn-outline" style="flex: 1; padding: 12px; font-weight: 600; border-color: rgba(0,229,255,0.3); color: var(--cyan);" onclick="clearCacheFromLogin()" title="Clear stale bet ACKs, table frames, and system memory before logging in">
+                🧹 Clear Cache
+            </button>
+        </div>
+
+        <div id="login-status" class="status-msg" style="display:none">
+            <span id="login-status-text">Initializing...</span>
+        </div>
+
+        <div id="login-error" class="status-msg error" style="display:none">
+            <span id="login-error-text"></span>
+        </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════ DASHBOARD ════════════════════ -->
+<div id="dashboard">
+
+    <!-- Topbar -->
+    <div class="topbar">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="topbar-brand">
+                7MOJO DUAL HEDGE
+                <span id="success-badge" class="pill pill-confirm" style="display:none; margin-left:10px; font-size:11px; padding:2px 8px; vertical-align: middle;">🎉 3x Target Reached!</span>
+                <span id="game-subtitle">Andar & Bahar Sync System</span>
+            </div>
+            
+            <button class="btn btn-outline" style="font-size: 10px; padding: 6px 12px; height: fit-content;" onclick="goToLogin()" title="Return to login screen and switch accounts">🔑 Switch Accounts</button>
+            
+            <!-- Real-time Server Health & Ping Widget -->
+            <div id="net-signal" title="Connecting..." style="display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(46, 204, 113, 0.12); border-radius: 20px; border: 1px solid rgba(46, 204, 113, 0.4); transition: all 0.3s ease;">
+                <span id="net-signal-dot" style="width: 9px; height: 9px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 8px #2ecc71; display: inline-block; flex-shrink: 0; transition: all 0.3s ease;"></span>
+                <span style="font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">SERVER:</span>
+                <span id="net-status-text" style="font-size: 11px; font-weight: 800; color: #2ecc71; letter-spacing: 0.5px; text-transform: uppercase;">GREAT</span>
+                <span class="latency-value" id="net-latency-val" style="font-size: 11px; font-weight: 800; color: #2ecc71; font-family: monospace; border-left: 1px solid rgba(255,255,255,0.15); padding-left: 6px;">-- ms</span>
+            </div>
+        </div>
+        <div class="bal-row">
+            <div class="bal-card player">
+                <div class="bal-label" id="label-acc1">Acc 1 — Andar</div>
+                <div class="bal-amount" id="bal1">Rs. 0.00</div>
+                <div id="init-bal1" style="font-size:10px; color:var(--muted); margin-top:2px;">Start: Rs. 0.00</div>
+                <button id="burn-btn-1" class="btn btn-primary" style="display:none; margin-top:5px; font-size:12px; padding:4px 8px; background:#e74c3c; border-color:#c0392b; width: 100%;" onclick="triggerBurn(1)">🔥 Burn Account</button>
+            </div>
+            <div class="bal-card banker">
+                <div class="bal-label" id="label-acc2">Acc 2 — Bahar</div>
+                <div class="bal-amount" id="bal2">Rs. 0.00</div>
+                <div id="init-bal2" style="font-size:10px; color:var(--muted); margin-top:2px;">Start: Rs. 0.00</div>
+                <button id="burn-btn-2" class="btn btn-primary" style="display:none; margin-top:5px; font-size:12px; padding:4px 8px; background:#e74c3c; border-color:#c0392b; width: 100%;" onclick="triggerBurn(2)">🔥 Burn Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bet Control -->
+    <div class="bet-control">
+        <div class="bet-control-header" style="flex-direction: column; gap: 12px;">
+            <!-- Row 1: Title + Signal Widget (full width) -->
+            <div class="bet-control-row-1">
+                <div class="bet-control-title" style="white-space: nowrap;">Auto-Bet Control</div>
+                
+                <!-- Betting Signal Status Widget -->
+                <div id="system-signal-widget" style="display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.2); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); margin-left: auto; overflow: hidden; min-width: 0;">
+                    <span id="signal-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #e74c3c; box-shadow: 0 0 8px #e74c3c; display: inline-block; transition: all 0.3s ease; flex-shrink: 0;"></span>
+                    <span id="signal-text" style="font-size: 11px; font-weight: 700; color: #e74c3c; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease; white-space: nowrap;"></span>
+                    <span id="signal-timing" style="display:none;"></span>
+                    <span id="signal-details" style="font-size: 9px; color: var(--muted); display: none; white-space: nowrap;"></span>
+                </div>
+            </div>
+            
+            <!-- Row 2: Bet Sizing + Buttons (FIXED positions) -->
+            <div class="bet-control-row-2">
+                <!-- Bet Sizing -->
+                <div class="bet-sizing-container" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <span style="font-size: 13px; color: var(--muted); white-space: nowrap;">Bet Size:</span>
+                    <select id="bet-mode-select" style="background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 4px; font-size: 13px; outline: none; cursor: pointer;">
+                        <option value="auto" selected>Auto (Max Balance)</option>
+                    </select>
+                </div>
+                
+                <!-- Buttons (fixed position, never move) -->
+                <div class="btn-row" style="min-height: 40px; margin-left: auto; flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 8px;">
+                    <div style="position: relative; min-width: 140px;">
+                        <button id="arm-btn" class="btn btn-primary" style="padding:8px 20px; width:100%;" onclick="armBet()">
+                            <span id="arm-btn-inner">Arm Auto-Bet</span>
+                        </button>
+                        <button id="disarm-btn" class="btn btn-danger" onclick="disarmBet()" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%;">
+                            Cancel
+                        </button>
+                    </div>
+                    <button class="btn btn-outline" onclick="clearCache()" title="Clear all results, history, and cached data" style="padding:8px 12px;">
+                        🗑️
+                    </button>
+                    <button class="btn btn-outline" onclick="exportData()" title="Download profitable bet history as JSON" style="font-size:11px; padding:8px 12px;">
+                        📥
+                    </button>
+
+                </div>
+            </div>
+        </div>
+
+        <div id="bet-strip" style="display:none;"></div>
+    </div>
+
+    <!-- Tables -->
+    <div class="tables-row">
+
+        <!-- Account 1 -->
+        <div class="tables-panel">
+            <div class="tables-panel-head">
+                <div class="panel-head-left">
+                    <div class="panel-dot green"></div>
+                    <div>
+                        <div class="panel-title green" id="panel-title-1">Account 1 — Andar</div>
+                        <div id="panel-domain-1" style="font-size:10px;color:#8899aa;font-weight:500;margin-top:2px;letter-spacing:0.3px;"></div>
+                    </div>
+                </div>
+                <div class="panel-count" id="count1">0 tables</div>
+            </div>
+            <div class="tables-body" id="tables-grid-1">
+                <div class="empty-msg">Waiting for connection</div>
+            </div>
+        </div>
+
+        <!-- Account 2 -->
+        <div class="tables-panel">
+            <div class="tables-panel-head">
+                <div class="panel-head-left">
+                    <div class="panel-dot cyan"></div>
+                    <div>
+                        <div class="panel-title cyan" id="panel-title-2">Account 2 — Bahar</div>
+                        <div id="panel-domain-2" style="font-size:10px;color:#8899aa;font-weight:500;margin-top:2px;letter-spacing:0.3px;"></div>
+                    </div>
+                </div>
+                <div class="panel-count" id="count2">0 tables</div>
+            </div>
+            <div class="tables-body" id="tables-grid-2">
+                <div class="empty-msg">Waiting for connection</div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+    <div class="result-section" id="result-panel">
+        <div class="result-head">
+            <div class="result-head-title">Last Round Result</div>
+        </div>
+        <div class="result-grid" id="result-grid"></div>
+        <div class="result-footer" id="result-footer"></div>
+    </div>
+
+    <!-- Real-time Live Log Console -->
+    <div class="result-section" style="margin-top: 20px; border-color: rgba(255,255,255,0.05);">
+        <div class="result-head" style="cursor: pointer; user-select: none;" onclick="toggleTerminal()">
+            <div class="result-head-title" style="display: flex; align-items: center; gap: 8px;">
+                <span>🛠️ Live Diagnostics Console</span>
+                <span id="terminal-badge" class="pill" style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3);">ACTIVE</span>
+            </div>
+            <button class="btn btn-outline" style="font-size: 10px; padding: 4px 8px; margin-left: auto;">Toggle Console</button>
+        </div>
+        <div id="terminal-container" style="background: #080808; border-radius: 6px; padding: 12px; margin-top: 10px; height: 160px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.5; color: #a9b7c6; border: 1px solid rgba(255,255,255,0.04); white-space: pre-wrap; text-align: left;">
+            [Initializing live system diagnostic feed...]
+        </div>
+    </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast-wrap"></div>
+
+
+<script>
+    // 🚨 Global JS Error reporting to backend logs
+    window.onerror = function(message, source, lineno, colno, error) {
+        const body = {
+            message: message,
+            stack: error ? error.stack : `at ${source}:${lineno}:${colno}`
+        };
+        fetch('/api/js_error', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        }).catch(()=>{});
+    };
+    
+    // ─── MULTI-TENANT SESSION MANAGEMENT ─────────────────────
+    let sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) {
+        sessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('sessionId', sessionId);
+    }
+
+    // Intercept all fetch requests to inject X-Session-ID header
+    const originalFetch = window.fetch;
+    window.fetch = async function() {
+        let [resource, config] = arguments;
+        if (!config) config = {};
+        if (!config.headers) config.headers = {};
+        // Add session header
+        config.headers['X-Session-ID'] = sessionId;
+        return originalFetch(resource, config);
+    };
+
+    // Sync sessionId with server's active running session on page load
+    (async function syncSessionWithServer() {
+        try {
+            const r = await originalFetch('/api/active_session');
+            const d = await r.json();
+            if (d.session_id && d.session_id !== sessionId) {
+                console.log('[Session] Auto-synced to active session:', d.session_id);
+                sessionId = d.session_id;
+                localStorage.setItem('sessionId', sessionId);
+            }
+            if (d.active_game && d.active_game !== currentGame) {
+                currentGame = d.active_game;
+            }
+        } catch(e) { /* server not yet ready */ }
+    })();
+    // ─────────────────────────────────────────────────────────
+
+    // ─── STATE ───────────────────────────────────────────
+    let loginStatusInterval = null;
+    let pollingInterval     = null;
+    let lastBetState        = 'idle';
+    let lastResultStr       = null;
+    let lastBetDataStr      = null;   // tracks full bet data for intra-state updates
+    let lastSignalState     = 'red';
+    let autoReconnecting    = false;  // prevent double re-login
+    let autoReconnectTimer  = null;   // debounce timer
+
+    function playSoftAlert() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+            osc.frequency.exponentialRampToValueAtTime(880.00, ctx.currentTime + 0.12); // A5
+            
+            gain.gain.setValueAtTime(0.001, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    }
+    let terminalInterval    = null;
+    let isTerminalOpen      = true;
+
+    function toggleTerminal() {
+        const container = document.getElementById('terminal-container');
+        const badge = document.getElementById('terminal-badge');
+        if (container) {
+            if (isTerminalOpen) {
+                container.style.display = 'none';
+                badge.innerText = 'PAUSED';
+                badge.style.background = 'rgba(231, 76, 60, 0.15)';
+                badge.style.color = '#e74c3c';
+                badge.style.borderColor = 'rgba(231, 76, 60, 0.3)';
+                isTerminalOpen = false;
+                stopTerminalPolling();
+            } else {
+                container.style.display = 'block';
+                badge.innerText = 'ACTIVE';
+                badge.style.background = 'rgba(46, 204, 113, 0.15)';
+                badge.style.color = '#2ecc71';
+                badge.style.borderColor = 'rgba(46, 204, 113, 0.3)';
+                isTerminalOpen = true;
+                startTerminalPolling();
+            }
+        }
+    }
+
+    function fetchLiveLogs() {
+        if (!isTerminalOpen) return;
+        fetch('/api/logs')
+            .then(res => res.text())
+            .then(text => {
+                const container = document.getElementById('terminal-container');
+                if (container) {
+                    const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 60;
+                    container.innerText = text || "[No active logs in buffer. Waiting for bets...]";
+                    if (isAtBottom) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                }
+            })
+            .catch(err => console.error("Error fetching logs:", err));
+    }
+
+    function startTerminalPolling() {
+        if (terminalInterval) clearInterval(terminalInterval);
+        if (isTerminalOpen) {
+            fetchLiveLogs();
+            terminalInterval = setInterval(fetchLiveLogs, 3500);
+        }
+    }
+
+    function stopTerminalPolling() {
+        if (terminalInterval) {
+            clearInterval(terminalInterval);
+            terminalInterval = null;
+        }
+    }
+
+    let burnStartTime       = null;
+    let currentBurnedAccount = null;
+    let userDismissedBurnedAccount = null;
+
+    function closeBurnedModal() {
+        userDismissedBurnedAccount = currentBurnedAccount;
+        const reloginOverlay = document.getElementById('relogin-overlay');
+        if (reloginOverlay) reloginOverlay.style.display = 'none';
+    }
+
+    let loaderBypassed      = false;
+    let connectionTimer     = null;
+
+    function showLoader(text) {
+        const loader = document.getElementById('page-loader');
+        const txt = document.getElementById('page-loader-text');
+        txt.innerText = text;
+        loader.style.display = 'flex';
+        requestAnimationFrame(() => {
+            loader.style.opacity = '1';
+        });
+    }
+
+    function hideLoader() {
+        const loader = document.getElementById('page-loader');
+        loader.style.opacity = '0';
+        setTimeout(() => {
+            loader.style.display = 'none';
+            document.getElementById('page-loader-skip').style.display = 'none';
+        }, 400);
+        if (connectionTimer) {
+            clearTimeout(connectionTimer);
+            connectionTimer = null;
+        }
+    }
+
+    window.bypassLoader = function() {
+        loaderBypassed = true;
+        hideLoader();
+        toast('Loader Bypassed', 'You can now interact with the dashboard, but some tables may still be connecting.', 'info', 3000);
+    };
+
+    // ─── LOGIN HISTORY ───────────────────────────────────
+    function getHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('loginHistory') || '[]');
+        } catch(e) {
+            return [];
+        }
+    }
+
+    function saveHistory(history) {
+        localStorage.setItem('loginHistory', JSON.stringify(history));
+    }
+
+    function syncBaseUrls() {
+        const val = document.getElementById('baseUrl').value;
+        const b1 = document.getElementById('baseUrl1');
+        const b2 = document.getElementById('baseUrl2');
+        if (b1) b1.value = val;
+        if (b2) b2.value = val;
+    }
+
+    function addHistoryItem(baseUrl, username1, password1, username2, password2, baseUrl1, baseUrl2) {
+        const b1 = baseUrl1 || baseUrl;
+        const b2 = baseUrl2 || baseUrl;
+        const history = getHistory();
+        const filtered = history.filter(item => 
+            !(item.username1 === username1 && item.username2 === username2)
+        );
+        
+        filtered.unshift({
+            timestamp: Date.now(),
+            baseUrl,
+            baseUrl1: b1,
+            baseUrl2: b2,
+            username1,
+            password1,
+            username2,
+            password2,
+            balance1: 0.0,
+            balance2: 0.0
+        });
+
+        saveHistory(filtered.slice(0, 15));
+        renderHistory();
+    }
+
+    function deleteHistoryItem(index, event) {
+        if (event) event.stopPropagation();
+        const history = getHistory();
+        history.splice(index, 1);
+        saveHistory(history);
+        renderHistory();
+    }
+
+    function selectHistoryItem(index) {
+        const history = getHistory();
+        const item = history[index];
+        if (!item) return;
+
+        if (item.baseUrl) document.getElementById('baseUrl').value = item.baseUrl;
+        if (item.baseUrl1) document.getElementById('baseUrl1').value = item.baseUrl1;
+        else if (item.baseUrl) document.getElementById('baseUrl1').value = item.baseUrl;
+        
+        if (item.baseUrl2) document.getElementById('baseUrl2').value = item.baseUrl2;
+        else if (item.baseUrl) document.getElementById('baseUrl2').value = item.baseUrl;
+
+        document.getElementById('user1').value = item.username1;
+        document.getElementById('pass1').value = item.password1;
+        document.getElementById('user2').value = item.username2;
+        document.getElementById('pass2').value = item.password2;
+
+        const items = document.querySelectorAll('.history-item');
+        items.forEach((el, i) => {
+            if (i === index) el.classList.add('active-recent');
+            else el.classList.remove('active-recent');
+        });
+    }
+
+    function updateActiveBalanceInHistory(bal1, bal2) {
+        const history = getHistory();
+        if (history.length === 0) return;
+        
+        const user1 = document.getElementById('user1')?.value?.trim() || '';
+        const user2 = document.getElementById('user2')?.value?.trim() || '';
+
+        const item = history.find(item => 
+            item.username1 === user1 && item.username2 === user2
+        );
+
+        if (item) {
+            item.balance1 = bal1;
+            item.balance2 = bal2;
+            item.timestamp = Date.now();
+            
+            const otherItems = history.filter(h => h !== item);
+            saveHistory([item, ...otherItems]);
+            renderHistory();
+        }
+    }
+
+    function renderHistory() {
+        const history = getHistory();
+        const container = document.getElementById('history-items-container');
+        if (!container) return;
+
+        const sidebar = document.getElementById('login-history-sidebar');
+        if (history.length === 0) {
+            if (sidebar) sidebar.style.display = 'none';
+            container.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 11px; margin-top: 40px; font-family: inherit;">No saved sessions yet</div>`;
+            return;
+        } else {
+            if (sidebar) sidebar.style.display = 'flex';
+        }
+
+        container.innerHTML = history.map((item, idx) => {
+            const domain = item.baseUrl.replace('https://', '').replace('http://', '');
+            const activeClass = (idx === 0) ? 'active-recent' : '';
+            return `
+                <div class="history-item ${activeClass}" onclick="selectHistoryItem(${idx})">
+                    <button class="history-delete-btn" onclick="deleteHistoryItem(${idx}, event)" title="Delete session">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                    <div class="history-header">
+                        <span class="history-domain">${domain}</span>
+                    </div>
+                    <div class="history-users">
+                        <div>👤 P: ${item.username1}</div>
+                        <div>👤 B: ${item.username2}</div>
+                    </div>
+                    <div class="history-balances">
+                        <span class="history-bal-badge p1">P: Rs. ${(item.balance1 || 0).toFixed(2)}</span>
+                        <span class="history-bal-badge p2">B: Rs. ${(item.balance2 || 0).toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ─── TOAST ───────────────────────────────────────────
+    const ICONS = {
+        placing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
+        placed:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        win:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        loss:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+        warn:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        info:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`
+    };
+
+    function toast(title, desc, type, ms = 5000) {
+        const wrap = document.getElementById('toast-wrap');
+        const el   = document.createElement('div');
+        el.className = 'toast';
+        el.innerHTML = `
+            <div class="toast-icon ${type}">${ICONS[type] || ICONS.info}</div>
+            <div class="toast-body">
+                <div class="toast-title">${title}</div>
+                ${desc ? `<div class="toast-desc">${desc}</div>` : ''}
+            </div>`;
+        wrap.appendChild(el);
+
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+
+        if (ms > 0) {
+            setTimeout(() => {
+                el.classList.add('leaving');
+                setTimeout(() => el.remove(), 300);
+            }, ms);
+        }
+        return el;
+    }
+
+    function clearToasts() {
+        document.getElementById('toast-wrap').innerHTML = '';
+    }
+
+    // ─── LOGIN GAME SELECTOR ─────────────────────────────
+    let selectedLoginGame = 'andar_bahar';
+    
+    function selectLoginGame(game) {
+        selectedLoginGame = game;
+        // Update login tab buttons
+        document.getElementById('login-tab-ab').classList.toggle('active', game === 'andar_bahar');
+        document.getElementById('login-tab-rl').classList.toggle('active', game === 'roulette');
+        
+        // Update login screen labels
+        const s1 = game === 'roulette' ? 'Red' : 'Andar';
+        const s2 = game === 'roulette' ? 'Black' : 'Bahar';
+        const gameName = game === 'roulette' ? 'Roulette' : 'Andar Bahar';
+        
+        document.getElementById('login-cred-label1').innerText = 'Account 1 — ' + s1;
+        document.getElementById('login-cred-label2').innerText = 'Account 2 — ' + s2;
+        document.getElementById('login-sub-text').innerText = 'Connect two accounts for Twin ' + gameName + ' hedging';
+    }
+
+    // ─── LOGIN ───────────────────────────────────────────
+    async function doLogin() {
+        const baseUrl1 = document.getElementById('baseUrl1')?.value || 'https://starexch555.com';
+        const baseUrl2 = document.getElementById('baseUrl2')?.value || 'https://cricmatch247.com';
+        const baseUrl  = baseUrl1;
+        const user1 = document.getElementById('user1').value.trim();
+        const pass1 = document.getElementById('pass1').value;
+        const user2 = document.getElementById('user2').value.trim();
+        const pass2 = document.getElementById('pass2').value;
+
+        const btn      = document.getElementById('login-btn');
+        const errDiv   = document.getElementById('login-error');
+        const errTxt   = document.getElementById('login-error-text');
+        const statDiv  = document.getElementById('login-status');
+        const statTxt  = document.getElementById('login-status-text');
+
+        errDiv.style.display = 'none';
+
+        if (!user1 || !pass1 || !user2 || !pass2) {
+            errTxt.innerText = 'Please enter credentials for both accounts.';
+            errDiv.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>&nbsp; Connecting...`;
+        statDiv.style.display = 'block';
+        statTxt.innerText = 'Switching game mode...';
+
+        // ── Switch to selected game BEFORE login ──
+        try {
+            await fetch('/api/switch_game', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
+                body: JSON.stringify({ game: selectedLoginGame })
+            });
+            currentGame = selectedLoginGame;
+        } catch(e) {
+            console.warn('Game switch failed, continuing with default:', e);
+        }
+
+        statTxt.innerText = 'Establishing connection...';
+
+        loginStatusInterval = setInterval(async () => {
+            try {
+                const r = await fetch('/api/login_status');
+                const d = await r.json();
+                statTxt.innerText = `Acc 1: ${d.status1 || '...'} — Acc 2: ${d.status2 || '...'}`;
+            } catch(e) {}
+        }, 700);
+
+        try {
+            const res  = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ baseUrl: baseUrl, baseUrl1: baseUrl1, baseUrl2: baseUrl2, username1: user1, password1: pass1, username2: user2, password2: pass2 })
+            });
+            const data = await res.json();
+            clearInterval(loginStatusInterval);
+
+            if (data.success) {
+                // Add to history
+                addHistoryItem(baseUrl, user1, pass1, user2, pass2, baseUrl1, baseUrl2);
+                statTxt.innerText = 'Connected to WebSockets';
+                btn.innerHTML = 'Connected';
+                setTimeout(() => {
+                    document.getElementById('login-overlay').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                    
+                    // No loader — dashboard shows immediately
+                    // Connection status shown via smart guidance pill
+                    loaderBypassed = true;
+
+                    // ── Update dashboard UI for selected game ──
+                    const s1 = currentGame === 'roulette' ? 'Red' : 'Andar';
+                    const s2 = currentGame === 'roulette' ? 'Black' : 'Bahar';
+                    const subtitle = document.getElementById('game-subtitle');
+                    if (subtitle) subtitle.innerText = currentGame === 'roulette' ? 'Red & Black Sync System' : 'Andar & Bahar Sync System';
+                    document.getElementById('panel-title-1').innerText = 'Account 1 — ' + s1;
+                    document.getElementById('panel-title-2').innerText = 'Account 2 — ' + s2;
+
+                    pollingInterval = setInterval(fetchStatus, 500);
+                    fetchStatus();
+                    startTerminalPolling();
+                }, 600);
+            } else {
+                errTxt.innerText = data.message;
+                errDiv.style.display = 'block';
+                statDiv.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = 'Connect Both Accounts';
+            }
+        } catch(e) {
+            clearInterval(loginStatusInterval);
+            errTxt.innerText = 'Network error. Make sure the server is running.';
+            errDiv.style.display = 'block';
+            statDiv.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = 'Connect Both Accounts';
+        }
+    }
+
+    // ─── ARM / DISARM ─────────────────────────────────────
+    function toggleCustomBetAmount() {
+        const select = document.getElementById('bet-mode-select');
+        const customInput = document.getElementById('custom-amount-input');
+        if (select.value === 'custom') {
+            customInput.style.display = 'inline-block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+        }
+    }
+
+    async function armBet() {
+        const armBtn = document.getElementById('arm-btn');
+        armBtn.disabled = true;
+        
+        const mode = 'auto';
+        const amount = 100.0;
+        
+        try {
+            const res  = await fetch('/api/bet', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode, amount })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                toast('Cannot Arm', data.message, 'warn', 5000);
+                armBtn.disabled = false;
+            }
+        } catch(e) {
+            armBtn.disabled = false;
+        }
+    }
+
+    async function disarmBet() {
+        try {
+            const res  = await fetch('/api/disarm', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                applyBetState('idle', null);
+                toast('Auto-Bet Cancelled', 'Click Arm when ready to activate.', 'info', 3000);
+            }
+        } catch(e) {}
+    }
+
+    async function clearCache() {
+        try {
+            // Send server-side clear request for current session
+            const res  = await fetch('/api/clear_cache', { method: 'POST' });
+            const data = await res.json();
+
+            // Clear browser session storage and local storage (wipes login history totally)
+            sessionStorage.clear();
+            localStorage.clear();
+
+            // 🚀 Generate a BRAND-NEW unique Session ID (like opening a fresh tab!)
+            sessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('sessionId', sessionId);
+
+            // Clear all form inputs
+            ['baseUrl', 'baseUrl1', 'baseUrl2', 'user1', 'pass1', 'user2', 'pass2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            // Redirect back to login overlay
+            const overlay = document.getElementById('login-overlay');
+            const dash = document.getElementById('dashboard');
+            if (overlay) overlay.style.display = 'flex';
+            if (dash) dash.style.display = 'none';
+
+            // Re-render empty login history
+            renderHistory();
+
+            if (data.success) {
+                // Reset local UI result grid & bet history display
+                lastResultStr = null;
+                const grid = document.getElementById('result-grid');
+                if (grid) grid.innerHTML = '';
+                const footer = document.getElementById('result-footer');
+                if (footer) footer.innerHTML = '';
+                applyBetState('idle', null);
+                toast('Fresh Session & Cache Cleared', 'Brand-new Session ID generated & all history/credentials wiped cleanly!', 'info', 3500);
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    async function clearCacheFromLogin() {
+        const btn = document.getElementById('login-clear-cache-btn');
+        if (!btn) return;
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '🧹 Clearing...';
+        try {
+            // Send server-side clear request
+            const res = await fetch('/api/clear_cache', { method: 'POST' });
+            const data = await res.json();
+
+            // Clear browser session storage and local storage (wipes login history totally)
+            sessionStorage.clear();
+            localStorage.clear();
+
+            // 🚀 Generate a BRAND-NEW unique Session ID (like opening a fresh tab!)
+            sessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('sessionId', sessionId);
+
+            // Clear all form inputs
+            ['baseUrl', 'baseUrl1', 'baseUrl2', 'user1', 'pass1', 'user2', 'pass2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            // Re-render empty login history
+            renderHistory();
+
+            if (data.success) {
+                const errBox = document.getElementById('login-error');
+                const errText = document.getElementById('login-error-text');
+                if (errBox && errText) {
+                    errBox.style.display = 'block';
+                    errBox.className = 'status-msg';
+                    errBox.style.background = 'rgba(0,229,255,0.1)';
+                    errBox.style.borderColor = 'rgba(0,229,255,0.3)';
+                    errBox.style.color = 'var(--cyan)';
+                    errText.innerHTML = '✨ <b>Fresh Brand-New Session Created!</b> All cache, ACKs, frames, credentials, and browser login history wiped cleanly.';
+                    setTimeout(() => { errBox.style.display = 'none'; }, 4500);
+                }
+            }
+        } catch(e) {
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
+    }
+
+    async function testStackBet() {
+        const btn = document.getElementById('stack-test-btn');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Testing...';
+        btn.style.opacity = '0.5';
+        toast('Stack Test', 'Sending 2 × ₹50 rapid bets to one table...', 'info', 3000);
+        
+        try {
+            const res = await fetch('/api/test_stack', {method: 'POST'});
+            const data = await res.json();
+            
+            if (data.success && data.details) {
+                const d = data.details;
+                const color = data.stacking_works ? 'info' : 'warn';
+                toast(
+                    '🧪 Stack Test Result',
+                    `${d.verdict}\n` +
+                    `Table: ${d.table}\n` +
+                    `Fire speed: ${d.fire_ms}ms\n` +
+                    `Balance: ₹${d.bal_before} → ₹${d.bal_after} (−₹${d.deducted})\n` +
+                    `Acks: ${d.ack_statuses.join(', ') || 'none received'}`,
+                    color,
+                    15000
+                );
+            } else {
+                toast('🧪 Stack Test', data.message || 'Test failed', 'warn', 8000);
+            }
+        } catch(e) {
+            toast('🧪 Stack Test Error', e.message, 'warn', 5000);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🧪 Stack Test';
+            btn.style.opacity = '1';
+        }
+    }
+
+    async function exportData() {
+        try {
+            const link = document.createElement('a');
+            link.href = '/api/export_data';
+            link.download = 'bet_history.json';
+            // Pass session header via fetch then create blob download
+            const res = await fetch('/api/export_data');
+            if (!res.ok) {
+                toast('Export Failed', 'No data available or server error.', 'warn', 3000);
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast('Data Exported', 'Profitable rounds downloaded as bet_history.json', 'info', 3000);
+        } catch(e) {
+            toast('Export Failed', 'Error downloading data.', 'warn', 3000);
+        }
+    }
+
+    // ─── BET STATE MACHINE ───────────────────────────────
+    function applyBetState(state, result) {
+        const resultStr = JSON.stringify(result);
+        // Only skip if BOTH state and data are unchanged
+        if (state === lastBetState && resultStr === lastBetDataStr) return;
+        lastBetState    = state;
+        lastBetDataStr  = resultStr;
+
+        const armBtn    = document.getElementById('arm-btn');
+        const armInner  = document.getElementById('arm-btn-inner');
+        const disarmBtn = document.getElementById('disarm-btn');
+        const strip     = document.getElementById('bet-strip');
+
+        // Reset button
+        armBtn.className = 'btn';
+        armBtn.style.padding = '10px 22px';
+
+        strip.style.display = 'none';
+        strip.innerHTML = '';
+
+        if (state === 'idle') {
+            armBtn.classList.add('btn-primary');
+            armInner.innerHTML = 'Arm Auto-Bet';
+            armBtn.disabled = false;
+            disarmBtn.style.display = 'none';
+
+        } else if (state === 'armed') {
+            armBtn.classList.add('btn-armed');
+            armInner.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>&nbsp; Armed &mdash; Watching`;
+            armBtn.disabled = true;
+            disarmBtn.style.display = 'inline-flex';
+
+            strip.style.display = 'flex';
+            strip.className = 'status-strip armed';
+            strip.innerHTML = `
+                <div class="strip-indicator amber"></div>
+                <div class="strip-text">
+                    <strong>Armed &amp; Scanning</strong>
+                    <p>Waiting for 2 ${currentGame === 'roulette' ? 'Roulette' : 'Andar Bahar'} twin tables with sufficient betting time remaining...</p>
+                </div>`;
+
+        } else if (state === 'placing') {
+            armBtn.classList.add('btn-placing');
+            armInner.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>&nbsp; Placing Bets`;
+            armBtn.disabled = true;
+            disarmBtn.style.display = 'none';
+
+            const bets  = result?.bets || [];
+            const b1    = result?.bet1?.toFixed(2) || '—';
+            const b2    = result?.bet2?.toFixed(2) || '—';
+            const tables = result?.tables || ['Table A', 'Table B'];
+
+            strip.style.display = 'flex';
+            strip.className = 'status-strip placing';
+            strip.style.flexDirection = 'column';
+            strip.style.gap = '10px';
+            strip.style.padding = '14px 16px';
+
+            const fireMs = result?.fire_elapsed_ms;
+            const fireLabel = fireMs ? `<span style="font-size:11px;font-weight:700;color:#00e676;background:rgba(0,230,118,0.12);padding:2px 8px;border-radius:4px;margin-left:auto;">⚡ Fired in ${fireMs}ms</span>` : '';
+            
+            const header = `
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="strip-indicator blue"></div>
+                    <div class="strip-text">
+                        <strong>Firing 4 Bets Simultaneously</strong>
+                        <p>Account 1: Rs. ${b1} ${currentGame === 'roulette' ? 'Red' : 'Andar'} &mdash; Account 2: Rs. ${b2} ${currentGame === 'roulette' ? 'Black' : 'Bahar'}</p>
+                    </div>
+                    ${fireLabel}
+                    <div class="dots" style="color:var(--blue)"><i></i><i></i><i></i></div>
+                </div>`;
+
+            const rows = renderBetRows(bets, tables, b1, b2);
+            strip.innerHTML = header + rows;
+
+            clearToasts();
+            toast('Placing 4 Bets', `Acc1: Rs. ${b1} ${currentGame === 'roulette' ? 'Red' : 'Andar'} on 2 tables &mdash; Acc2: Rs. ${b2} ${currentGame === 'roulette' ? 'Black' : 'Bahar'} on 2 tables`, 'placing', 5000);
+
+        } else if (state === 'placed') {
+            armBtn.classList.add('btn-placed');
+            armInner.innerHTML = 'Bets Placed';
+            armBtn.disabled = true;
+            disarmBtn.style.display = 'none';
+
+            const bets   = result?.bets || [];
+            const b1     = result?.bet1?.toFixed(2) || '—';
+            const b2     = result?.bet2?.toFixed(2) || '—';
+            const tables = result?.tables || [];
+            const confirmed    = bets.filter(b => b.status === 'confirmed').length;
+            const sent_unconf  = bets.filter(b => b.status === 'sent').length;
+            const rejected     = bets.filter(b => b.status === 'rejected').length;
+            const failed       = bets.filter(b => b.status === 'failed').length;
+            const bad          = rejected + failed;
+
+            const summaryClass = bad === 0 ? 'green' : 'amber';
+            let summaryText;
+            if (bad === 0 && confirmed === 4)       summaryText = 'All 4 bets confirmed by server. Awaiting result in ~45s.';
+            else if (bad === 0 && sent_unconf > 0)  summaryText = `${confirmed} confirmed, ${sent_unconf} sent (unverified). Awaiting result in ~45s.`;
+            else                                    summaryText = `${confirmed} confirmed. ${rejected} rejected, ${failed} failed. Awaiting result.`;
+
+            strip.style.display = 'flex';
+            strip.className = 'status-strip placed';
+            strip.style.flexDirection = 'column';
+            strip.style.gap = '10px';
+            strip.style.padding = '14px 16px';
+
+            const header = `
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="strip-indicator ${summaryClass}"></div>
+                    <div class="strip-text">
+                        <strong>${bad === 0 ? 'All Bets Placed' : 'Bets Partially Placed'}</strong>
+                        <p>${summaryText}</p>
+                    </div>
+                </div>`;
+
+            const rows = renderBetRows(bets, tables, b1, b2);
+            strip.innerHTML = header + rows;
+
+            clearToasts();
+            const toastType  = bad === 0 ? 'placed' : 'warn';
+            const toastTitle = confirmed === 4
+                ? 'All 4 Bets Confirmed'
+                : bad === 0
+                    ? `${confirmed} Confirmed, ${sent_unconf} Unverified`
+                    : `${confirmed}/4 Bets OK — ${bad} Problem(s)`;
+            toast(toastTitle, `Acc1: Rs. ${b1} ${currentGame === 'roulette' ? 'Red' : 'Andar'} &mdash; Acc2: Rs. ${b2} ${currentGame === 'roulette' ? 'Black' : 'Bahar'}`, toastType, 8000);
+
+        } else if (state === 'armed' && result?.type === 'undone') {
+            // ═══ AUTONOMOUS UNDO + RE-ARM — Show brief notification ═══
+            armBtn.classList.add('btn-armed');
+            armInner.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>&nbsp; Re-Armed`;
+            armBtn.disabled = true;
+            disarmBtn.style.display = 'inline-flex';
+
+            const reason = result?.reason || 'One side not confirmed';
+            strip.style.display = 'flex';
+            strip.className = 'status-strip placing';  // Use blue/amber styling
+            strip.style.flexDirection = 'column';
+            strip.style.gap = '10px';
+            strip.style.padding = '14px 16px';
+
+            strip.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="strip-indicator" style="background:var(--red);"></div>
+                    <div class="strip-text">
+                        <strong>⚠️ Hedge Broken — Both Sides Undone</strong>
+                        <p>${reason} — Bets undone automatically. Re-armed for next round.</p>
+                    </div>
+                </div>`;
+
+            clearToasts();
+            toast('Hedge Broken → Undone', `${reason}. Auto re-armed for next round.`, 'warn', 6000);
+
+            // Auto-transition to normal armed view after 5s
+            setTimeout(() => {
+                if (lastBetState === 'armed') {
+                    lastBetDataStr = null;  // Force re-render
+                    applyBetState('armed', null);
+                }
+            }, 5000);
+        }
+    }
+
+    // ─── BET ROWS RENDERER ────────────────────────────────
+    // Status hierarchy:
+    //   placing      = WS send in progress
+    //   sent         = WS delivered, awaiting server confirmation
+    //   confirmed    = server acknowledged bet
+    //   rejected     = server rejected bet (window closed, etc.)
+    //   failed       = WS send itself failed
+    function renderBetRows(bets, tables, b1, b2) {
+        if (!bets || bets.length === 0) {
+            bets = [
+                {account:'Account 1', bet_on: currentGame === 'roulette' ? 'Red' : 'Andar',  table: tables[0] || 'Table A', amount: b1, status:'placing', error:null},
+                {account:'Account 1', bet_on: currentGame === 'roulette' ? 'Red' : 'Andar',  table: tables[1] || 'Table B', amount: b1, status:'placing', error:null},
+                {account:'Account 2', bet_on: currentGame === 'roulette' ? 'Black' : 'Bahar',  table: tables[0] || 'Table A', amount: b2, status:'placing', error:null},
+                {account:'Account 2', bet_on: currentGame === 'roulette' ? 'Black' : 'Bahar',  table: tables[1] || 'Table B', amount: b2, status:'placing', error:null},
+            ];
+        }
+
+        return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;">${
+            bets.map(b => {
+                let pillCls, pillTxt, borderColor;
+
+                switch (b.status) {
+                    case 'placing':
+                        pillCls    = 'pill pill-conn';
+                        pillTxt    = `<span class="dots" style="color:var(--blue);font-size:10px"><i></i><i></i><i></i></span> Placing`;
+                        borderColor = 'var(--blue-bdr)';
+                        break;
+                    case 'sent':
+                        // Sent but no server ack yet — treat as warning
+                        pillCls    = 'pill pill-warn';
+                        pillTxt    = 'Sent — Unverified';
+                        borderColor = 'var(--amber-bdr)';
+                        break;
+                    case 'confirmed':
+                        pillCls    = 'pill pill-confirm';
+                        pillTxt    = 'Confirmed';
+                        borderColor = 'rgba(74,222,128,0.4)';
+                        break;
+                    case 'rejected':
+                        pillCls    = 'pill pill-reject';
+                        pillTxt    = 'Rejected';
+                        borderColor = 'var(--red-bdr)';
+                        break;
+                    case 'failed':
+                    default:
+                        pillCls    = 'pill pill-fail';
+                        pillTxt    = 'Failed';
+                        borderColor = 'var(--red-bdr)';
+                        break;
+                    case 'undone':
+                        pillCls    = 'pill pill-warn';
+                        pillTxt    = '↩️ Undone';
+                        borderColor = 'var(--amber-bdr)';
+                        break;
+                }
+
+                const accentColor = (b.bet_on === 'Andar' || b.bet_on === 'Red') ? 'var(--green)' : 'var(--cyan)';
+                const errLine = (b.error && (b.status === 'failed' || b.status === 'rejected'))
+                    ? `<div style="font-size:10px;color:var(--red);margin-top:4px;word-break:break-word;line-height:1.4;">${b.error}</div>`
+                    : '';
+
+                return `<div style="background:var(--card);border:1px solid ${borderColor};border-left:3px solid ${accentColor};border-radius:8px;padding:10px 12px;transition:border-color 0.3s;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.account}</div>
+                            <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.bet_on} &mdash; ${b.table}</div>
+                            <div style="font-size:11px;font-weight:600;color:${accentColor};margin-top:3px;">Rs. ${typeof b.amount === 'number' ? b.amount.toFixed(2) : b.amount}</div>
+                            ${errLine}
+                        </div>
+                        <span class="${pillCls}" style="flex-shrink:0;font-size:10px;margin-top:2px;">${pillTxt}</span>
+                    </div>
+                </div>`;
+            }).join('')
+        }</div>`;
+    }
+
+
+    function renderResult(r) {
+        const panel   = document.getElementById('result-panel');
+        const grid    = document.getElementById('result-grid');
+        const footer  = document.getElementById('result-footer');
+        const isProfit = r.total_profit > 0;
+
+        const p1cls = r.profit1 >= 0 ? 'profit' : 'loss';
+        const p2cls = r.profit2 >= 0 ? 'profit' : 'loss';
+        const netCls = isProfit ? 'profit' : 'loss';
+        const sign1  = r.profit1 >= 0 ? '+' : '';
+        const sign2  = r.profit2 >= 0 ? '+' : '';
+        const signN  = r.total_profit >= 0 ? '+' : '';
+
+        grid.innerHTML = `
+            <div class="result-cell">
+                <div class="result-cell-label">Account 1 P&amp;L</div>
+                <div class="result-cell-value ${p1cls}">${sign1}Rs. ${r.profit1.toFixed(2)}</div>
+                <div class="result-cell-sub">Bal: Rs. ${r.bal1.toFixed(2)}</div>
+            </div>
+            <div class="result-cell highlight ${isProfit ? '' : 'loss'}">
+                <div class="result-cell-label">Net Result</div>
+                <div class="result-cell-value ${netCls} big">${signN}Rs. ${r.total_profit.toFixed(2)}</div>
+                <div class="result-cell-sub">${isProfit ? 'Profit' : 'Loss'}</div>
+            </div>
+            <div class="result-cell">
+                <div class="result-cell-label">Account 2 P&amp;L</div>
+                <div class="result-cell-value ${p2cls}">${sign2}Rs. ${r.profit2.toFixed(2)}</div>
+                <div class="result-cell-sub">Bal: Rs. ${r.bal2.toFixed(2)}</div>
+            </div>`;
+
+        footer.innerText = `Tables: ${r.tables.join(' and ')}`;
+        panel.style.display = 'block';
+
+        clearToasts();
+        toast(
+            isProfit ? 'Round Finished — Profit' : 'Round Finished — Loss',
+            `Net: ${signN}Rs. ${r.total_profit.toFixed(2)} | P1: ${sign1}Rs. ${r.profit1.toFixed(2)} | P2: ${sign2}Rs. ${r.profit2.toFixed(2)}`,
+            isProfit ? 'win' : 'loss',
+            12000
+        );
+    }
+
+    // ─── TABLE CARD ───────────────────────────────────────
+    function pillFor(isOpen, status) {
+        if (isOpen)                           return ['pill pill-open',    'Open'];
+        if (status === 'Dealing')             return ['pill pill-dealing', 'Dealing'];
+        if (status === 'Connected')           return ['pill pill-conn',    'Connected'];
+        if (status === 'Connecting...')       return ['pill pill-default', 'Connecting'];
+        if (status && status.toLowerCase().includes('reconnect')) return ['pill pill-warn', '🔄 Reconnecting'];
+        return ['pill pill-default', status || 'Offline'];
+    }
+
+    function renderTables(gridId, countId, tables) {
+        const grid  = document.getElementById(gridId);
+        const count = document.getElementById(countId);
+
+        if (!tables || tables.length === 0) {
+            grid.innerHTML = '<div class="empty-msg">Waiting for connection</div>';
+            count.innerText = '0 tables';
+            return;
+        }
+
+        count.innerText = `${tables.length} table${tables.length > 1 ? 's' : ''}`;
+
+        // ── Bug 1 fix: surgical per-card update instead of full innerHTML replacement.
+        // Full replace causes pill-open animation to restart every 500ms (flicker).
+        // Strategy: give each card a stable DOM id keyed by token; only update
+        // inner text/classes when the value actually changed.
+        const existingTokens = new Set();
+        for (const card of grid.querySelectorAll('.table-card[data-token]')) {
+            existingTokens.add(card.dataset.token);
+        }
+
+        const incomingTokens = new Set(tables.map(t => t.token));
+
+        // Remove empty message if it exists
+        const emptyMsg = grid.querySelector('.empty-msg');
+        if (emptyMsg) emptyMsg.remove();
+
+        // Remove cards for tokens no longer present
+        for (const tok of existingTokens) {
+            if (!incomingTokens.has(tok)) {
+                const old = grid.querySelector(`.table-card[data-token="${tok}"]`);
+                if (old) old.remove();
+            }
+        }
+
+        tables.forEach((t, idx) => {
+            const [cls, label] = pillFor(t.is_open, t.status);
+            const rid = t.roundId ? String(t.roundId).slice(-8) : '--------';
+
+            // Build latency badge HTML
+            let latencyHtml = '';
+            if (t.latency !== undefined && t.latency !== null && t.latency >= 0) {
+                let latColor = '#4caf50';
+                if (t.latency > 120) latColor = '#ff9800';
+                if (t.latency > 250) latColor = '#f44336';
+                latencyHtml = `<span style="font-size:9px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:4px;float:right;"><span style="width:6px;height:6px;border-radius:50%;background:${latColor}"></span>${t.latency}ms</span>`;
+            }
+
+            // Build result badge HTML
+            let resultHtml = '';
+            if (t.last_result && t.last_result.winner) {
+                const w = t.last_result.winner;
+                let badgeCls = 'unknown-win';
+                // Support both AB (Andar/Bahar/Tie) and Roulette (Red/Black/Green)
+                if (w === 'Andar' || w === 'Red') badgeCls = 'player-win';
+                else if (w === 'Bahar' || w === 'Black') badgeCls = 'banker-win';
+                else if (w === 'Tie' || w.includes('Green')) badgeCls = 'tie-win';
+                
+                // Roulette: show winning number
+                const winNum = t.last_result.winningNumber;
+                if (winNum !== undefined && winNum !== null) {
+                    resultHtml = `<span class="result-badge ${badgeCls}">${w}</span><span class="result-score">#${winNum}</span>`;
+                } else {
+                    const pScore = t.last_result.cardsDealt != null ? t.last_result.cardsDealt : (t.last_result.playerTotal != null ? t.last_result.playerTotal : '?');
+                    const bScore = t.last_result.jokerCard ? `J:${t.last_result.jokerCard.rank || '?'}` : (t.last_result.bankerTotal != null ? t.last_result.bankerTotal : '?');
+                    resultHtml = `<span class="result-badge ${badgeCls}">${w}</span><span class="result-score">Cards:${pScore} ${bScore}</span>`;
+                }
+            }
+
+            const cardId = `tc-${gridId}-${t.token}`;
+            let card = document.getElementById(cardId);
+
+            if (!card) {
+                // ── New card: insert in correct position
+                card = document.createElement('div');
+                card.className = 'table-card';
+                card.id = cardId;
+                card.dataset.token = t.token;
+                card.innerHTML = `
+                    <div style="flex:1;min-width:0;">
+                        <div class="table-name" style="display:flow-root;" id="${cardId}-name"></div>
+                        <div style="margin-top:4px;display:flex;align-items:center;gap:6px;" id="${cardId}-result"></div>
+                    </div>
+                    <div class="table-meta">
+                        <span class="round-id" id="${cardId}-rid"></span>
+                        <span id="${cardId}-pill"></span>
+                    </div>`;
+                // Insert at correct index
+                const sibling = grid.children[idx];
+                if (sibling) grid.insertBefore(card, sibling);
+                else grid.appendChild(card);
+            }
+
+            // ── Surgical updates: only touch DOM when value changed ──
+            const nameEl   = document.getElementById(`${cardId}-name`);
+            const resultEl = document.getElementById(`${cardId}-result`);
+            const ridEl    = document.getElementById(`${cardId}-rid`);
+            const pillEl   = document.getElementById(`${cardId}-pill`);
+
+            // Frame Ready badge
+            const frameReady = t.frame_ready && t.is_open;
+            const frameBadge = frameReady 
+                ? `<span style="font-size:8px;font-weight:800;color:#00e676;background:rgba(0,230,118,0.12);padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:0.5px;">⚡ READY</span>` 
+                : '';
+
+            const newNameHtml = `${t.name}${frameBadge}${latencyHtml}`;
+            if (nameEl && nameEl.innerHTML !== newNameHtml)   nameEl.innerHTML = newNameHtml;
+
+            // Show mini-loader when Connected but no game data yet, hide once live data arrives
+            const hasGameData = t.is_open || t.status === 'Dealing' || t.status === 'Betting Open' || (t.last_result && t.last_result.winner);
+            const loaderHtml = '<div class="mini-loader"><span></span><span></span><span></span><span class="mini-loader-text">waiting…</span></div>';
+
+            if (!hasGameData && t.status === 'Connected') {
+                if (resultEl && !resultEl.querySelector('.mini-loader')) resultEl.innerHTML = loaderHtml;
+            } else {
+                if (resultEl && resultEl.innerHTML !== resultHtml) resultEl.innerHTML = resultHtml;
+            }
+
+            if (ridEl && ridEl.innerText !== rid)              ridEl.innerText = rid;
+
+            if (pillEl) {
+                if (pillEl.className !== cls)    pillEl.className = cls;
+                if (pillEl.innerText !== label)  pillEl.innerText = label;
+            }
+
+            // Open glow class on outer card
+            const wantsOpen = t.is_open;
+            if (wantsOpen && !card.classList.contains('open')) card.classList.add('open');
+            else if (!wantsOpen && card.classList.contains('open')) card.classList.remove('open');
+        });
+    }
+
+    let _fetchInFlight = false;
+    async function fetchStatus() {
+        if (_fetchInFlight) return;  // Skip if previous fetch still running
+        _fetchInFlight = true;
+        const _t0 = performance.now();
+        try {
+            const res  = await fetch('/api/status');
+            const data = await res.json();
+            const httpPing = Math.max(1, Math.round(performance.now() - _t0));
+
+            // Manage connection loader state
+            const loginOverlayVisible = document.getElementById('login-overlay').style.display !== 'none';
+            const reloginOverlayVisible = document.getElementById('relogin-overlay').style.display !== 'none';
+            
+            if (loginOverlayVisible || reloginOverlayVisible) {
+                hideLoader();
+            } else if (!loaderBypassed) {
+                let totalTables = (data.tables1?.length || 0) + (data.tables2?.length || 0);
+                let readyTables = 0;
+                
+                const isReady = (status) => {
+                    if (!status) return false;
+                    const s = status.toLowerCase();
+                    return s !== 'disconnected' && !s.includes('connecting') && s !== 'offline';
+                };
+
+                if (data.tables1) {
+                    data.tables1.forEach(t => { if (isReady(t.status)) readyTables++; });
+                }
+                if (data.tables2) {
+                    data.tables2.forEach(t => { if (isReady(t.status)) readyTables++; });
+                }
+
+                // Always show dashboard — connection status shown via guidance pill
+                hideLoader();
+            }
+
+            // Update Betting Signal Status Widget
+            const signalDot = document.getElementById('signal-dot');
+            const signalText = document.getElementById('signal-text');
+            const signalDetails = document.getElementById('signal-details');
+            const signalTiming = document.getElementById('signal-timing');
+            
+            if (signalDot && signalText && signalDetails) {
+                // ── Sync active game from server ──
+                if (data.active_game && data.active_game !== currentGame) {
+                    currentGame = data.active_game;
+                    const subtitle = document.getElementById('game-subtitle');
+                    if (subtitle) subtitle.innerText = currentGame === 'roulette' ? 'Red & Black Sync System' : 'Andar & Bahar Sync System';
+                    const label1 = document.getElementById('label-acc1');
+                    const label2 = document.getElementById('label-acc2');
+                    if (label1) label1.innerText = currentGame === 'roulette' ? 'Acc 1 — Red' : 'Acc 1 — Andar';
+                    if (label2) label2.innerText = currentGame === 'roulette' ? 'Acc 2 — Black' : 'Acc 2 — Bahar';
+                    const pt1 = document.getElementById('panel-title-1');
+                    const pt2 = document.getElementById('panel-title-2');
+                    if (pt1) pt1.innerText = currentGame === 'roulette' ? 'Account 1 — Red' : 'Account 1 — Andar';
+                    if (pt2) pt2.innerText = currentGame === 'roulette' ? 'Account 2 — Black' : 'Account 2 — Bahar';
+                }
+                
+                const signal = data.system_signal || 'red';
+                const ram = data.system_ram || 0;
+                const lat = data.system_latency || 0;
+                const remTime = data.system_time_remaining || 0;
+                const reasons = data.system_signal_reasons || [];
+                
+                // Real-time server health & ping update — Green (Great <=100ms), Yellow (Mid 101-250ms), Red (Bad >250ms)
+                const netSignal = document.getElementById('net-signal');
+                const netSignalDot = document.getElementById('net-signal-dot');
+                const netStatusText = document.getElementById('net-status-text');
+                const netLatencyVal = document.getElementById('net-latency-val');
+                
+                if (netSignal && netLatencyVal) {
+                    let pingVals = [];
+                    if (data.tables1) data.tables1.forEach(t => { if (t.latency && t.latency > 0) pingVals.push(t.latency); });
+                    if (data.tables2) data.tables2.forEach(t => { if (t.latency && t.latency > 0) pingVals.push(t.latency); });
+                    let latVal = pingVals.length > 0 ? Math.round(pingVals.reduce((a,b) => a+b, 0) / pingVals.length) : 0;
+                    if (latVal <= 0 && data.system_latency && data.system_latency > 0) {
+                        latVal = Math.round(data.system_latency);
+                    }
+                    if (latVal <= 0 && httpPing > 0) {
+                        latVal = httpPing;
+                    }
+                    
+                    const isConnected = (data.login_status1 && data.login_status1 !== 'Not logged in') || 
+                                      (data.login_status2 && data.login_status2 !== 'Not logged in');
+                    
+                    if (latVal > 0 && isConnected) {
+                        netLatencyVal.innerText = `${latVal} ms`;
+                        if (latVal <= 100) {
+                            // GREAT (GREEN)
+                            netSignal.style.background = 'rgba(46, 204, 113, 0.12)';
+                            netSignal.style.borderColor = 'rgba(46, 204, 113, 0.4)';
+                            if (netSignalDot) {
+                                netSignalDot.style.background = '#2ecc71';
+                                netSignalDot.style.boxShadow = '0 0 10px #2ecc71';
+                            }
+                            if (netStatusText) {
+                                netStatusText.innerText = 'GREAT';
+                                netStatusText.style.color = '#2ecc71';
+                            }
+                            netLatencyVal.style.color = '#2ecc71';
+                            netSignal.title = `Realtime Server: GREAT (${latVal} ms low latency RTT)`;
+                        } else if (latVal <= 250) {
+                            // MID (YELLOW)
+                            netSignal.style.background = 'rgba(241, 196, 15, 0.12)';
+                            netSignal.style.borderColor = 'rgba(241, 196, 15, 0.4)';
+                            if (netSignalDot) {
+                                netSignalDot.style.background = '#f1c40f';
+                                netSignalDot.style.boxShadow = '0 0 10px #f1c40f';
+                            }
+                            if (netStatusText) {
+                                netStatusText.innerText = 'MID';
+                                netStatusText.style.color = '#f1c40f';
+                            }
+                            netLatencyVal.style.color = '#f1c40f';
+                            netSignal.title = `Realtime Server: MID (${latVal} ms moderate latency)`;
+                        } else {
+                            // BAD (RED)
+                            netSignal.style.background = 'rgba(231, 76, 60, 0.12)';
+                            netSignal.style.borderColor = 'rgba(231, 76, 60, 0.4)';
+                            if (netSignalDot) {
+                                netSignalDot.style.background = '#e74c3c';
+                                netSignalDot.style.boxShadow = '0 0 10px #e74c3c';
+                            }
+                            if (netStatusText) {
+                                netStatusText.innerText = 'BAD';
+                                netStatusText.style.color = '#e74c3c';
+                            }
+                            netLatencyVal.style.color = '#e74c3c';
+                            netSignal.title = `Realtime Server: BAD (${latVal} ms high latency)`;
+                        }
+                    } else {
+                        // OFFLINE / DISCONNECTED / BAD
+                        netSignal.style.background = 'rgba(231, 76, 60, 0.12)';
+                        netSignal.style.borderColor = 'rgba(231, 76, 60, 0.4)';
+                        if (netSignalDot) {
+                            netSignalDot.style.background = '#e74c3c';
+                            netSignalDot.style.boxShadow = '0 0 10px #e74c3c';
+                        }
+                        if (netStatusText) {
+                            netStatusText.innerText = 'BAD';
+                            netStatusText.style.color = '#e74c3c';
+                        }
+                        netLatencyVal.innerText = latVal > 0 ? `${latVal} ms` : '-- ms';
+                        netLatencyVal.style.color = '#e74c3c';
+                        netSignal.title = 'Realtime Server Connection: Offline or high latency';
+                    }
+                }
+                
+                if (signal === 'green') {
+                    signalDot.style.background = '#2ecc71';
+                    signalDot.style.boxShadow = '0 0 10px #2ecc71';
+                    signalText.innerText = '🟢 READY — Will Fire';
+                    signalText.style.color = '#2ecc71';
+                    if (lastSignalState !== 'green') {
+                        playSoftAlert();
+                    }
+                    lastSignalState = 'green';
+                } else if (signal === 'yellow') {
+                    signalDot.style.background = '#f1c40f';
+                    signalDot.style.boxShadow = '0 0 10px #f1c40f';
+                    signalText.innerText = '🟡 Ready — Press Arm';
+                    signalText.style.color = '#f1c40f';
+                    lastSignalState = 'yellow';
+                } else {
+                    signalDot.style.background = '#e74c3c';
+                    signalDot.style.boxShadow = '0 0 10px #e74c3c';
+                    signalText.innerText = '🔴 NOT READY';
+                    signalText.style.color = '#e74c3c';
+                    lastSignalState = 'red';
+                }
+
+
+                
+                // Count tables actively dealing (not safe to ARM during active rounds)
+                let playingCount = 0;
+                if (data.tables1) data.tables1.forEach(t => { if (t.status === 'Dealing' || t.status === 'Betting Open') playingCount++; });
+                if (data.tables2) data.tables2.forEach(t => { if (t.status === 'Dealing' || t.status === 'Betting Open') playingCount++; });
+
+                let detailsText = `(RAM: ${ram.toFixed(0)}%, Lat: ${lat.toFixed(0)}ms`;
+                if (remTime > 0) {
+                    detailsText += `, <span style="color:#e74c3c;font-weight:700;">Time: ${remTime.toFixed(1)}s</span>`;
+                }
+                if (playingCount > 0) {
+                    detailsText += ` | <span style="color:#f39c12;">${playingCount} tbl playing</span>`;
+                }
+                if (reasons.length > 0) {
+                    detailsText += ` | ${reasons.join(', ')}`;
+                }
+                detailsText += `)`;
+                
+                signalDetails.innerHTML = detailsText;
+                signalDetails.style.display = 'inline';
+                
+                // Disable ARM button when system is red (unsafe to bet)
+                const armBtnRef = document.getElementById('arm-btn');
+                if (armBtnRef && data.bet_state === 'idle') {
+                    if (signal === 'red') {
+                        armBtnRef.disabled = true;
+                        armBtnRef.style.opacity = '0.4';
+                        armBtnRef.title = 'System ready nahi hai — sab green hone do';
+                    } else {
+                        armBtnRef.disabled = false;
+                        armBtnRef.style.opacity = '1';
+                        armBtnRef.title = '';
+                    }
+                }
+            }
+
+            // Balances
+            document.getElementById('bal1').innerText = 'Rs. ' + (data.balance1 || 0).toFixed(2);
+            document.getElementById('bal2').innerText = 'Rs. ' + (data.balance2 || 0).toFixed(2);
+            
+            // Obfuscated temporary nicknames (game-aware)
+            const side1Label = currentGame === 'roulette' ? 'Red' : 'Andar';
+            const side2Label = currentGame === 'roulette' ? 'Black' : 'Bahar';
+            document.getElementById('label-acc1').innerText = 'Acc 1 — ' + side1Label + (data.nickname1 ? ' (' + data.nickname1 + ')' : '');
+            document.getElementById('label-acc2').innerText = 'Acc 2 — ' + side2Label + (data.nickname2 ? ' (' + data.nickname2 + ')' : '');
+            
+            // Starting balances
+            document.getElementById('init-bal1').innerText = 'Start: Rs. ' + (data.initial_balance1 || 0).toFixed(2);
+            document.getElementById('init-bal2').innerText = 'Start: Rs. ' + (data.initial_balance2 || 0).toFixed(2);
+            
+            // Success badge display
+            document.getElementById('success-badge').style.display = data.is_successful ? 'inline-block' : 'none';
+
+            // Manual burn buttons - display on negative balance so user can manually rotate and resume hedging
+            document.getElementById('burn-btn-1').style.display = (data.balance1 < 0 && !data.burned_account) ? 'block' : 'none';
+            document.getElementById('burn-btn-2').style.display = (data.balance2 < 0 && !data.burned_account) ? 'block' : 'none';
+
+            // Update local storage history with real-time balance
+            updateActiveBalanceInHistory(data.balance1 || 0, data.balance2 || 0);
+
+            // Andar Bahar Tables
+            renderTables('tables-grid-1', 'count1', data.tables1);
+            renderTables('tables-grid-2', 'count2', data.tables2);
+
+            // Show connected domain in panel header
+            const domEl1 = document.getElementById('panel-domain-1');
+            const domEl2 = document.getElementById('panel-domain-2');
+            if (domEl1 && data.domain1) {
+                try { domEl1.innerText = '🌐 ' + new URL(data.domain1).hostname; } catch(e) { domEl1.innerText = '🌐 ' + data.domain1; }
+            }
+            if (domEl2 && data.domain2) {
+                try { domEl2.innerText = '🌐 ' + new URL(data.domain2).hostname; } catch(e) { domEl2.innerText = '🌐 ' + data.domain2; }
+            }
+
+            // Andar Bahar Bet state
+            const state    = data.bet_state || 'idle';
+            const betStr   = JSON.stringify(data.last_bet_result);
+            if (state !== lastBetState || betStr !== lastBetDataStr) {
+                applyBetState(state, data.last_bet_result);
+            }
+
+            // Result panel on new result
+            const rStr = JSON.stringify(data.last_bet_result);
+            if (data.last_bet_result?.type === 'result' && rStr !== lastResultStr) {
+                lastResultStr = rStr;
+                renderResult(data.last_bet_result);
+                setTimeout(() => applyBetState('idle', null), 2000);
+            }
+
+
+
+
+            // Burned Account handling
+            if (data.burned_account) {
+                if (currentBurnedAccount !== data.burned_account) {
+                    currentBurnedAccount = data.burned_account;
+                    userDismissedBurnedAccount = null; // Reset dismissal on new burned account
+                    if (!data.burn_detected_at) {
+                        burnStartTime = 0;
+                    } else {
+                        burnStartTime = data.burn_detected_at * 1000;
+                    }
+                }
+                
+                const reloginOverlay = document.getElementById('relogin-overlay');
+                const reloginTitle = document.getElementById('relogin-title');
+                const reloginSub = document.getElementById('relogin-sub');
+                const reloginBtn = document.getElementById('relogin-btn');
+                const userField = document.getElementById('relogin-username');
+                const passField = document.getElementById('relogin-password');
+                
+                if (userDismissedBurnedAccount === data.burned_account) {
+                    reloginOverlay.style.display = 'none';
+                } else {
+                    reloginOverlay.style.display = 'flex';
+                }
+
+                reloginTitle.innerText = `Account ${data.burned_account} Burned!`;
+                
+                let remaining = 0;
+                if (burnStartTime > 0) {
+                    const elapsed = Math.floor((Date.now() - burnStartTime) / 1000);
+                    remaining = 10 - elapsed;
+                }
+                
+                if (remaining > 0) {
+                    reloginSub.innerText = `Account has negative balance. Please wait ${remaining} seconds...`;
+                    reloginBtn.disabled = true;
+                    reloginBtn.innerText = `Please wait ${remaining}s...`;
+                    userField.disabled = true;
+                    passField.disabled = true;
+                } else {
+                    reloginSub.innerText = `Account has negative balance. Connect new ID to resume dual hedging.`;
+                    reloginBtn.disabled = false;
+                    reloginBtn.innerText = `Connect New Account`;
+                    userField.disabled = false;
+                    passField.disabled = false;
+                }
+            } else {
+                document.getElementById('relogin-overlay').style.display = 'none';
+                currentBurnedAccount = null;
+                userDismissedBurnedAccount = null;
+                burnStartTime = null;
+            }
+
+        } catch(e) {
+            fetch('/api/js_error', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    message: "fetchStatus error: " + e.message,
+                    stack: e.stack
+                })
+            }).catch(()=>{});
+        }
+        finally { _fetchInFlight = false; }
+    }
+
+
+
+    async function doRelogin() {
+        const username = document.getElementById('relogin-username').value.trim();
+        const password = document.getElementById('relogin-password').value;
+        const btn      = document.getElementById('relogin-btn');
+        const errDiv   = document.getElementById('relogin-error');
+        const errTxt   = document.getElementById('relogin-error-text');
+        const statDiv  = document.getElementById('relogin-status');
+        const statTxt  = document.getElementById('relogin-status-text');
+
+        errDiv.style.display = 'none';
+
+        if (!username || !password) {
+            errTxt.innerText = 'Please enter username and password.';
+            errDiv.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>&nbsp; Reconnecting...`;
+        statDiv.style.display = 'block';
+        statTxt.innerText = 'Connecting new account...';
+
+        try {
+            const res  = await fetch('/api/relogin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_num: currentBurnedAccount, username: username, password: password })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                statTxt.innerText = 'Connected successfully!';
+                btn.innerHTML = 'Connected';
+                setTimeout(() => {
+                    document.getElementById('relogin-overlay').style.display = 'none';
+                    statDiv.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = 'Connect New Account';
+                    document.getElementById('relogin-username').value = '';
+                    document.getElementById('relogin-password').value = '';
+                    currentBurnedAccount = null;
+                    burnStartTime = null;
+
+                    // Reset loader and trigger overlay during table reconnection
+                    loaderBypassed = false;
+                    showLoader("Reconnecting to game servers...");
+                    if (connectionTimer) clearTimeout(connectionTimer);
+                    connectionTimer = setTimeout(() => {
+                        document.getElementById('page-loader-skip').style.display = 'block';
+                    }, 12000);
+                }, 1000);
+            } else {
+                errTxt.innerText = data.message;
+                errDiv.style.display = 'block';
+                statDiv.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = 'Connect New Account';
+            }
+        } catch(e) {
+            errTxt.innerText = 'Network error. Make sure the server is running.';
+            errDiv.style.display = 'block';
+            statDiv.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = 'Connect New Account';
+        }
+    }
+
+    async function triggerBurn(accountNum) {
+        try {
+            const res = await fetch('/api/burn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_num: accountNum })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast('Account Burned', `Account ${accountNum} marked as burned. Please log in with a new ID.`, 'info', 3000);
+                if (data.rotated) {
+                    toast('Automatic Rotation', 'Rotated to a new account from Telegram queue.', 'info', 4000);
+                }
+                fetchStatus();
+            } else {
+                toast('Burn Failed', data.message, 'warn', 3000);
+            }
+        } catch (e) {
+            toast('Burn Failed', 'Network error.', 'warn', 3000);
+        }
+    }
+
+    // ── Game Switcher ──
+    let currentGame = 'andar_bahar';
+    
+    async function switchGame(game) {
+        if (game === currentGame) return;
+        try {
+            const resp = await fetch('/api/switch_game', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
+                body: JSON.stringify({ game: game })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                currentGame = game;
+                
+                // Update subtitle
+                const subtitle = document.getElementById('game-subtitle');
+                if (subtitle) {
+                    subtitle.innerText = game === 'roulette' ? 'Red & Black Sync System' : 'Andar & Bahar Sync System';
+                }
+                
+                // Update account labels
+                const label1 = document.getElementById('label-acc1');
+                const label2 = document.getElementById('label-acc2');
+                if (label1) label1.innerText = game === 'roulette' ? 'Acc 1 — Red' : 'Acc 1 — Andar';
+                if (label2) label2.innerText = game === 'roulette' ? 'Acc 2 — Black' : 'Acc 2 — Bahar';
+                
+                // Update panel titles
+                const pt1 = document.getElementById('panel-title-1');
+                const pt2 = document.getElementById('panel-title-2');
+                if (pt1) pt1.innerText = game === 'roulette' ? 'Account 1 — Red' : 'Account 1 — Andar';
+                if (pt2) pt2.innerText = game === 'roulette' ? 'Account 2 — Black' : 'Account 2 — Bahar';
+                
+                // Clear table grids to avoid stale cards from other game
+                document.getElementById('tables-grid-1').innerHTML = '<div class="empty-msg">Waiting for connection</div>';
+                document.getElementById('tables-grid-2').innerHTML = '<div class="empty-msg">Waiting for connection</div>';
+                document.getElementById('count1').innerText = '0 tables';
+                document.getElementById('count2').innerText = '0 tables';
+                
+                toast('🔀 Game Switched', data.message, 'success', 2000);
+            } else {
+                toast('Switch Failed', data.message, 'warn', 3000);
+            }
+        } catch (e) {
+            toast('Switch Error', 'Network error.', 'warn', 3000);
+        }
+    }
+
+    function goToLogin() {
+        if (confirm("Are you sure you want to return to the login screen? This will disarm auto-betting.")) {
+            // Disarm bet on backend
+            fetch('/api/disarm', { method: 'POST' }).catch(e => {});
+            
+            // Stop polling
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            stopTerminalPolling();
+            
+            // Show login screen
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('login-overlay').style.display = 'flex';
+            
+            // Restore login button state
+            const loginBtn = document.getElementById('login-btn');
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = 'Connect Both Accounts';
+            document.getElementById('login-status').style.display = 'none';
+        }
+    }
+
+    // Enter key on login / relogin
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            if (document.getElementById('login-overlay').style.display !== 'none') {
+                doLogin();
+            } else if (document.getElementById('relogin-overlay').style.display !== 'none' && !document.getElementById('relogin-btn').disabled) {
+                doRelogin();
+            }
+        }
+    });
+
+    // Auto-login restoration on page load
+    window.addEventListener('DOMContentLoaded', async () => {
+        // Render login history sidebar
+        renderHistory();
+        
+        // Start continuous status polling loop unconditionally
+        if (!pollingInterval) {
+            pollingInterval = setInterval(fetchStatus, 500);
+        }
+        
+        try {
+            const res = await fetch('/api/login_status');
+            const data = await res.json();
+            
+            const isConn1 = data.status1 && data.status1 !== 'Not logged in';
+            const isConn2 = data.status2 && data.status2 !== 'Not logged in';
+            
+            if (isConn1 || isConn2) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                hideLoader();
+                await fetchStatus();
+                startTerminalPolling();
+            } else {
+                hideLoader();
+                const history = getHistory();
+                if (history.length > 0) {
+                    selectHistoryItem(0);
+                }
+            }
+        } catch(e) {
+            console.error('Session check error:', e);
+            hideLoader();
+            const history = getHistory();
+            if (history.length > 0) {
+                selectHistoryItem(0);
+            }
+        }
+    });
+</script>
+</body>
+</html>

@@ -331,20 +331,24 @@
         async function clearCache() {
             const btn = document.getElementById('btnClear');
             btn.disabled = true;
-            btn.textContent = 'Clearing...';
+            btn.textContent = '⚡ Nuking everything...';
             try {
+                // 1. Wipe server-side state
                 await fetch('/api/clear-cache', {method: 'POST'});
-                btn.textContent = '✓ Cleared';
+                // 2. Wipe browser-side storage
+                try { localStorage.clear(); } catch(e) {}
+                try { sessionStorage.clear(); } catch(e) {}
+                // 3. Wipe all browser cookies
+                document.cookie.split(';').forEach(c => {
+                    document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+                });
+                btn.textContent = '✓ Wiped! Reloading...';
                 btn.style.borderColor = '#22c55e';
                 btn.style.color = '#22c55e';
-                setTimeout(() => {
-                    btn.textContent = '🗑 Clear All Cache & Data';
-                    btn.style.borderColor = '';
-                    btn.style.color = '';
-                    btn.disabled = false;
-                }, 1500);
+                // 4. Hard reload (bypass cache)
+                setTimeout(() => { window.location.href = '/' + '?t=' + Date.now(); }, 800);
             } catch (e) {
-                btn.textContent = 'Error';
+                btn.textContent = 'Error — try again';
                 btn.disabled = false;
             }
         }
