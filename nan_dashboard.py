@@ -485,7 +485,15 @@ def get_token(site_key, cookies):
             "Sec-Fetch-Site": "same-origin",
             "Upgrade-Insecure-Requests": "1",
         })
-    resp = urllib.request.urlopen(req, context=sslctx, timeout=30)
+    # Use SOCKS proxy if available (WAF sites block VPS IP)
+    if is_socks_available():
+        proxy_opener = urllib.request.build_opener(
+            SocksProxyHandler(SOCKS_PROXY_HOST, SOCKS_PROXY_PORT),
+            urllib.request.HTTPSHandler(context=sslctx),
+        )
+        resp = proxy_opener.open(req, timeout=30)
+    else:
+        resp = urllib.request.urlopen(req, context=sslctx, timeout=30)
     body = resp.read().decode('utf-8', 'ignore')
     om = re.search(r'options=([^"&\s]+)', body)
     if not om:
