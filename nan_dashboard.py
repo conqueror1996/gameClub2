@@ -148,6 +148,7 @@ def auto_login(site_key, username, password):
             for k, v in BROWSER_HEADERS.items():
                 req.add_header(k, v)
             resp = opener.open(req, timeout=30)
+            resp_status = resp.status
             html = resp.read().decode('utf-8', 'ignore')
             break
         except urllib.error.HTTPError as he:
@@ -199,8 +200,12 @@ def auto_login(site_key, username, password):
     if not xsrf and jar:
         xsrf = next((c.value for c in jar), None)
 
-    # Check for AWS WAF 202 Challenge or missing tokens
-    is_waf_challenge = "awsWafCookieDomainList" in html or "gokuProps" in html
+    # Check for REAL AWS WAF challenge:
+    # - HTTP 202 status (WAF intercepts before backend)
+    # - OR gokuProps in body (actual WAF JS challenge payload)
+    # NOTE: awsWafCookieDomainList alone is NOT a WAF challenge — it appears in
+    # normal page JS on many Cloudflare+AWSALB sites (false positive)
+    is_waf_challenge = (resp_status == 202) or ("gokuProps" in html)
 
     # AUTO-SOLVE: If AWS WAF challenge detected and no tokens, use headless browser
     if not xsrf and not csrf_meta and is_waf_challenge:
@@ -282,7 +287,11 @@ def auto_login(site_key, username, password):
             raise Exception(f"AWS WAF Challenge on {site_key} — Playwright not installed on server. Paste cookies manually.")
         except Exception as waf_err:
             print(f"[WAF-SOLVER] Failed: {waf_err}", file=sys.stderr)
-            raise Exception(f"AWS WAF Challenge on {site_key} — auto-solve failed: {waf_err}")
+            # If we already have xsrf/csrf from earlier cookies, don't crash — continue with login
+            if xsrf or csrf_meta:
+                print(f"[WAF-SOLVER] Have xsrf/csrf from cookies, continuing despite solver error", file=sys.stderr)
+            else:
+                raise Exception(f"AWS WAF Challenge on {site_key} — auto-solve failed: {waf_err}")
 
     if not xsrf and not csrf_meta:
         raise Exception(f"Could not connect to site security token for {site_key} — please try again in 5 seconds")
@@ -595,7 +604,9 @@ def login():
             return jsonify({"success": False, "message": "Username and password required"}), 400
 
     try:
-        if not is_waf:
+        if manual_cookies:
+            cookies = manual_cookies
+        elif not is_waf:
             cookies = auto_login(site_key, username, password)
 
         # Get game token + SID
