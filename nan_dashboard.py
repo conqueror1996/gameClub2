@@ -227,57 +227,90 @@ def auto_login(site_key, username, password):
                     viewport={"width": 1920, "height": 1080},
                 )
                 page = ctx.new_page()
-                target_url = f"{base}/mobile" if site_key == "spinmatch99.com" else base
-                page.goto(target_url, wait_until="load", timeout=45000)
+                target_url = f"{base}/mobile" if site_key in ("spinmatch99.com", "cricash24.com", "khelo24match99.com", "funinexch.com") else base
+                try:
+                    page.goto(target_url, wait_until="commit", timeout=25000)
+                except Exception as ge:
+                    print(f"[WAF-SOLVER] goto notice: {ge}", file=sys.stderr)
                 page.wait_for_timeout(4000)
 
-                # Extract CSRF token from page AND from XSRF-TOKEN cookie (more reliable)
+                # Extract CSRF token from page
                 pw_csrf = page.evaluate("() => document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')")
                 if pw_csrf:
                     csrf_meta = pw_csrf
-                # Also try XSRF-TOKEN cookie (Laravel sets this and it's always fresh)
-                xsrf_cookie = next((c['value'] for c in ctx.cookies() if 'XSRF' in c['name'].upper()), None)
-                if xsrf_cookie:
-                    from urllib.parse import unquote as _unquote
-                    xsrf_cookie = _unquote(xsrf_cookie)
 
-                # Try performing login directly inside browser context (handles all WAF/AJAX seamlessly)
+                # Try performing login directly inside browser JS runtime (handles all WAF/TLS/AJAX seamlessly)
                 try:
-                    if site_key in ("spinmatch99.com", "cricash24.com"):
-                        login_resp = page.request.post(f"{base}/api2/v2/login", form={
-                            'email': username,
-                            'password': password,
-                        }, headers={
-                            'X-CSRF-Token': xsrf_cookie or csrf_meta or '',
-                            'X-XSRF-TOKEN': xsrf_cookie or csrf_meta or '',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        })
+                    if site_key in ("spinmatch99.com", "cricash24.com", "funinexch.com"):
+                        eval_res = page.evaluate("""
+                            async ([u, p]) => {
+                                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                const fd = new URLSearchParams();
+                                fd.append('email', u);
+                                fd.append('password', p);
+                                const resp = await fetch('/api2/v2/login', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                        'X-CSRF-TOKEN': csrf || '',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: fd.toString()
+                                });
+                                const text = await resp.text();
+                                return { status: resp.status, body: text };
+                            }
+                        """, [username, password])
                     elif site_key == "khelo24match99.com":
-                        login_resp = page.request.post(f"{base}/api2/login", form={
-                            '_token': csrf_meta or '',
-                            'email': username,
-                            'password': password,
-                        }, headers={
-                            'X-CSRF-Token': csrf_meta or '',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        })
+                        eval_res = page.evaluate("""
+                            async ([u, p]) => {
+                                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                const fd = new URLSearchParams();
+                                fd.append('_token', csrf || '');
+                                fd.append('email', u);
+                                fd.append('password', p);
+                                const resp = await fetch('/api2/login', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                        'X-CSRF-TOKEN': csrf || '',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: fd.toString()
+                                });
+                                const text = await resp.text();
+                                return { status: resp.status, body: text };
+                            }
+                        """, [username, password])
                     elif site_key == "starexch555.com":
-                        login_resp = page.request.post(f"{base}/login", form={
-                            'username': username,
-                            'password': password,
-                            '_token': csrf_meta or '',
-                            'remember_me': '1',
-                        }, headers={
-                            'X-Requested-With': 'XMLHttpRequest',
-                        })
+                        eval_res = page.evaluate("""
+                            async ([u, p]) => {
+                                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                const fd = new URLSearchParams();
+                                fd.append('username', u);
+                                fd.append('password', p);
+                                fd.append('_token', csrf || '');
+                                fd.append('remember_me', '1');
+                                const resp = await fetch('/login', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: fd.toString()
+                                });
+                                const text = await resp.text();
+                                return { status: resp.status, body: text };
+                            }
+                        """, [username, password])
                     else:
-                        login_resp = None
+                        eval_res = None
 
-                    if login_resp:
-                        print(f"[WAF-SOLVER] In-browser login status: {login_resp.status}", file=sys.stderr)
+                    if eval_res:
+                        print(f"[WAF-SOLVER] In-browser evaluate login status: {eval_res.get('status')}, body: {eval_res.get('body')[:150]}", file=sys.stderr)
                         try:
-                            res_json = login_resp.json()
-                            if res_json.get("status") in (201, 303, 403) or "invalid" in res_json.get("message", "").lower():
+                            res_json = json.loads(eval_res.get('body', '{}'))
+                            if res_json.get("status") in (201, 303, 403) or "invalid" in res_json.get("message", "").lower() or "blocked" in res_json.get("message", "").lower():
                                 browser.close()
                                 raise Exception(f"Invalid credentials: {res_json.get('message', 'Check username & password')}")
                         except ValueError:
