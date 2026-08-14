@@ -231,10 +231,15 @@ def auto_login(site_key, username, password):
                 page.goto(target_url, wait_until="load", timeout=45000)
                 page.wait_for_timeout(4000)
 
-                # Extract CSRF token from page
+                # Extract CSRF token from page AND from XSRF-TOKEN cookie (more reliable)
                 pw_csrf = page.evaluate("() => document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')")
                 if pw_csrf:
                     csrf_meta = pw_csrf
+                # Also try XSRF-TOKEN cookie (Laravel sets this and it's always fresh)
+                xsrf_cookie = next((c['value'] for c in ctx.cookies() if 'XSRF' in c['name'].upper()), None)
+                if xsrf_cookie:
+                    from urllib.parse import unquote as _unquote
+                    xsrf_cookie = _unquote(xsrf_cookie)
 
                 # Try performing login directly inside browser context (handles all WAF/AJAX seamlessly)
                 try:
@@ -243,7 +248,8 @@ def auto_login(site_key, username, password):
                             'email': username,
                             'password': password,
                         }, headers={
-                            'X-CSRF-Token': csrf_meta or '',
+                            'X-CSRF-Token': xsrf_cookie or csrf_meta or '',
+                            'X-XSRF-TOKEN': xsrf_cookie or csrf_meta or '',
                             'X-Requested-With': 'XMLHttpRequest',
                         })
                     elif site_key == "khelo24match99.com":
@@ -469,47 +475,58 @@ def get_token(site_key, cookies):
     site = SITES[site_key]
     launch_url = site["launch"]
 
-    # For WAF-protected sites, use Playwright with SOCKS proxy
-    if is_socks_available():
-        try:
-            from playwright.sync_api import sync_playwright
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=True,
-                    proxy={"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"},
-                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
-                )
-                ctx = browser.new_context(user_agent=FULL_UA)
-                # Set cookies from the cookie string
-                cookie_list = []
-                for part in cookies.split('; '):
-                    if '=' in part:
-                        name, val = part.split('=', 1)
-                        cookie_list.append({
-                            "name": name.strip(), "value": val.strip(),
-                            "domain": site_key, "path": "/",
-                        })
-                if cookie_list:
-                    ctx.add_cookies(cookie_list)
-                page = ctx.new_page()
-                resp = page.goto(launch_url, wait_until="load", timeout=45000)
-                body = page.content()
-                browser.close()
-        except Exception as pw_err:
-            import sys
-            print(f"[get_token] Playwright fallback failed: {pw_err}, trying direct", file=sys.stderr)
-            body = _get_token_direct(launch_url, cookies)
-    else:
+    # Step 1: Always try direct first — the aws-waf-token cookie from login
+    # should let the VPS through WAF without needing the SOCKS proxy again.
+    try:
         body = _get_token_direct(launch_url, cookies)
-
-    om = re.search(r'options=([^"&\s]+)', body)
-    if not om:
+        om = re.search(r'options=([^"&\s]+)', body)
+        if om:
+            ob = unquote(om.group(1))
+            ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
+            o = json.loads(base64.b64decode(ob))
+            return o["launch_options"]["game_url"]
+        # Body came back but no options= param — might be WAF challenge page
+        if "Human Verification" in body or "gokuProps" in body or len(body) < 100:
+            raise Exception("WAF block on direct — try Playwright")
         raise Exception("Session expired — please re-login")
-    ob = unquote(om.group(1))
-    ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
-    o = json.loads(base64.b64decode(ob))
-    gu = o["launch_options"]["game_url"]
-    return gu
+    except Exception as direct_err:
+        import sys
+        if "Session expired" in str(direct_err):
+            raise
+        print(f"[get_token] Direct failed ({direct_err}), trying Playwright+SOCKS...", file=sys.stderr)
+
+    # Step 2: Fallback — Playwright with SOCKS proxy (home IP)
+    try:
+        from playwright.sync_api import sync_playwright
+        proxy_cfg = {"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"} if is_socks_available() else None
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                proxy=proxy_cfg,
+                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+            )
+            ctx = browser.new_context(user_agent=FULL_UA)
+            # Inject session cookies into browser
+            cookie_list = []
+            for part in cookies.split('; '):
+                if '=' in part:
+                    name, val = part.split('=', 1)
+                    cookie_list.append({"name": name.strip(), "value": val.strip(), "domain": site_key, "path": "/"})
+            if cookie_list:
+                ctx.add_cookies(cookie_list)
+            page = ctx.new_page()
+            page.goto(launch_url, wait_until="load", timeout=45000)
+            body = page.content()
+            browser.close()
+        om = re.search(r'options=([^"&\s]+)', body)
+        if not om:
+            raise Exception("Session expired — please re-login")
+        ob = unquote(om.group(1))
+        ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
+        o = json.loads(base64.b64decode(ob))
+        return o["launch_options"]["game_url"]
+    except Exception as pw_err:
+        raise Exception(f"Session expired — please re-login ({pw_err})")
 
 
 def _get_token_direct(launch_url, cookies):
