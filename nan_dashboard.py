@@ -48,11 +48,7 @@ SITES = {
         "base": "https://spinmatch99.com",
         "launch": "https://spinmatch99.com/softswiss/launch?q=2409&type=slots",
     },
-    "spinjeet365.com": {
-        "name": "SpinJeet365",
-        "base": "https://spinjeet365.com",
-        "launch": "https://spinjeet365.com/softswiss/launch?q=2409&type=slots",
-    },
+
 }
 
 GAME_BASE = "https://softswiss-ng.nucleusgaming.com"
@@ -231,9 +227,9 @@ def auto_login(site_key, username, password):
                     viewport={"width": 1920, "height": 1080},
                 )
                 page = ctx.new_page()
-                target_url = f"{base}/mobile" if site_key in ("spinmatch99.com", "spinjeet365.com") else base
-                page.goto(target_url, wait_until="networkidle", timeout=30000)
-                page.wait_for_timeout(3000)
+                target_url = f"{base}/mobile" if site_key == "spinmatch99.com" else base
+                page.goto(target_url, wait_until="load", timeout=45000)
+                page.wait_for_timeout(4000)
 
                 # Extract CSRF token from page
                 pw_csrf = page.evaluate("() => document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')")
@@ -242,7 +238,7 @@ def auto_login(site_key, username, password):
 
                 # Try performing login directly inside browser context (handles all WAF/AJAX seamlessly)
                 try:
-                    if site_key in ("spinmatch99.com", "spinjeet365.com", "cricash24.com"):
+                    if site_key in ("spinmatch99.com", "cricash24.com"):
                         login_resp = page.request.post(f"{base}/api2/v2/login", form={
                             'email': username,
                             'password': password,
@@ -382,7 +378,7 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/json"),
             method="POST")
 
-    elif site_key in ("cricash24.com", "spinmatch99.com", "spinjeet365.com"):
+    elif site_key in ("cricash24.com", "spinmatch99.com"):
         login_data = urlencode({
             "email": username, "password": password,
         }).encode()
@@ -471,30 +467,41 @@ FULL_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (K
 
 def get_token(site_key, cookies):
     site = SITES[site_key]
-    req = urllib.request.Request(site["launch"],
-        headers={
-            "User-Agent": FULL_UA,
-            "Cookie": cookies,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Sec-CH-UA": '"Chromium";v="136", "Google Chrome";v="136"',
-            "Sec-CH-UA-Mobile": "?0",
-            "Sec-CH-UA-Platform": '"macOS"',
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "same-origin",
-            "Upgrade-Insecure-Requests": "1",
-        })
-    # Use SOCKS proxy if available (WAF sites block VPS IP)
+    launch_url = site["launch"]
+
+    # For WAF-protected sites, use Playwright with SOCKS proxy
     if is_socks_available():
-        proxy_opener = urllib.request.build_opener(
-            SocksProxyHandler(SOCKS_PROXY_HOST, SOCKS_PROXY_PORT),
-            urllib.request.HTTPSHandler(context=sslctx),
-        )
-        resp = proxy_opener.open(req, timeout=30)
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    proxy={"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"},
+                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+                )
+                ctx = browser.new_context(user_agent=FULL_UA)
+                # Set cookies from the cookie string
+                cookie_list = []
+                for part in cookies.split('; '):
+                    if '=' in part:
+                        name, val = part.split('=', 1)
+                        cookie_list.append({
+                            "name": name.strip(), "value": val.strip(),
+                            "domain": site_key, "path": "/",
+                        })
+                if cookie_list:
+                    ctx.add_cookies(cookie_list)
+                page = ctx.new_page()
+                resp = page.goto(launch_url, wait_until="load", timeout=45000)
+                body = page.content()
+                browser.close()
+        except Exception as pw_err:
+            import sys
+            print(f"[get_token] Playwright fallback failed: {pw_err}, trying direct", file=sys.stderr)
+            body = _get_token_direct(launch_url, cookies)
     else:
-        resp = urllib.request.urlopen(req, context=sslctx, timeout=30)
-    body = resp.read().decode('utf-8', 'ignore')
+        body = _get_token_direct(launch_url, cookies)
+
     om = re.search(r'options=([^"&\s]+)', body)
     if not om:
         raise Exception("Session expired — please re-login")
@@ -502,8 +509,24 @@ def get_token(site_key, cookies):
     ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
     o = json.loads(base64.b64decode(ob))
     gu = o["launch_options"]["game_url"]
-    # Return full game_url — Nucleus requires all params (cashierUrl, homeUrl, etc.)
     return gu
+
+
+def _get_token_direct(launch_url, cookies):
+    """Direct urllib fetch for get_token (non-WAF sites)."""
+    req = urllib.request.Request(launch_url,
+        headers={
+            "User-Agent": FULL_UA,
+            "Cookie": cookies,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Upgrade-Insecure-Requests": "1",
+        })
+    resp = urllib.request.urlopen(req, context=sslctx, timeout=30)
+    return resp.read().decode('utf-8', 'ignore')
 
 
 def get_sid(game_url):
