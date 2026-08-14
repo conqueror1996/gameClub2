@@ -38,10 +38,10 @@ SITES = {
         "base": "https://khelo24match99.com",
         "launch": "https://khelo24match99.com/softswiss/launch?q=2409&type=slots",
     },
-    "betinexchange88.com": {
-        "name": "BetInExchange88",
-        "base": "https://betinexchange88.com",
-        "launch": "https://betinexchange88.com/softswiss/launch?q=2409&type=slots",
+    "funinexch.com": {
+        "name": "FunInExch",
+        "base": "https://www.funinexch.com",
+        "launch": "https://www.funinexch.com/softswiss/launch?q=2409&type=slots",
     },
     "spinmatch99.com": {
         "name": "SpinMatch99",
@@ -377,7 +377,7 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/x-www-form-urlencoded"),
             method="POST")
 
-    elif site_key in ("playinhorse.com", "betinexchange88.com"):
+    elif site_key in ("playinhorse.com", "funinexch.com"):
         login_data = json.dumps({"username": username, "password": password}).encode()
         login_req = urllib.request.Request(f"{base}/api2/v2/login",
             data=login_data,
