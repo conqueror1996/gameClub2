@@ -204,6 +204,11 @@
             <div class="login-logo">🎰</div>
             <div class="login-title">Fight Club</div>
             <div class="login-sub">Nucleus Gaming Baccarat — PoC Dashboard</div>
+            {% if tunnel_active %}
+            <div style="margin-top:8px;font-size:11px;color:#22c55e;font-weight:500;">🏠 Home IP Active — Residential routing</div>
+            {% else %}
+            <div style="margin-top:8px;font-size:11px;color:#94a3b8;font-weight:400;">🖥️ VPS IP — Run home_tunnel.sh for residential IP</div>
+            {% endif %}
         </div>
 
         <div id="errorBox" class="error-box"></div>

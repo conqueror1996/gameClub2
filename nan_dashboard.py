@@ -65,6 +65,51 @@ sessions_state = {}
 # AUTO LOGIN — extracts cookies from username/password
 # ============================================================
 
+import socket
+
+# SOCKS5 proxy config — when home_tunnel.sh is running, casino traffic goes through home IP
+SOCKS_PROXY_HOST = "127.0.0.1"
+SOCKS_PROXY_PORT = 1080
+
+def is_socks_available():
+    """Check if the SOCKS proxy (home tunnel) is running."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.connect((SOCKS_PROXY_HOST, SOCKS_PROXY_PORT))
+        s.close()
+        return True
+    except:
+        return False
+
+
+class SocksProxyHandler(urllib.request.BaseHandler):
+    """Route urllib requests through SOCKS5 proxy for home IP routing."""
+    def __init__(self, proxy_host, proxy_port):
+        self.proxy_host = proxy_host
+        self.proxy_port = proxy_port
+
+    def _socks_connect(self, host, port):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(30)
+        s.connect((self.proxy_host, self.proxy_port))
+        # SOCKS5 handshake — no auth
+        s.send(b'\x05\x01\x00')
+        resp = s.recv(2)
+        if resp != b'\x05\x00':
+            s.close()
+            raise Exception("SOCKS5 handshake failed")
+        # Connect request
+        addr_bytes = host.encode()
+        req = b'\x05\x01\x00\x03' + bytes([len(addr_bytes)]) + addr_bytes + port.to_bytes(2, 'big')
+        s.send(req)
+        resp = s.recv(10)
+        if resp[1] != 0:
+            s.close()
+            raise Exception(f"SOCKS5 connect failed: {resp[1]}")
+        return s
+
+
 def auto_login(site_key, username, password):
     """Login to casino site with username/password, return session cookies."""
     site = SITES[site_key]
@@ -493,7 +538,7 @@ def get_state(key=None):
 @app.route('/')
 def index():
     if 'logged_in' not in session:
-        return render_template('nan_login.html', sites=SITES)
+        return render_template('nan_login.html', sites=SITES, tunnel_active=is_socks_available())
     return render_template('nan_dashboard.html',
         site_name=session.get('site_name', ''),
         balance=session.get('balance', 0),
