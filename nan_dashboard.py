@@ -213,11 +213,19 @@ def auto_login(site_key, username, password):
         print(f"[WAF-SOLVER] AWS WAF challenge detected on {site_key}, launching headless solver...", file=sys.stderr)
         try:
             from playwright.sync_api import sync_playwright
+            socks_on = is_socks_available()
+            proxy_cfg = {"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"} if socks_on else None
+            print(f"[WAF-SOLVER] Proxy enabled: {socks_on}", file=sys.stderr)
+
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True, args=[
-                    '--no-sandbox', '--disable-setuid-sandbox',
-                    '--disable-blink-features=AutomationControlled',
-                ])
+                browser = p.chromium.launch(
+                    headless=True,
+                    proxy=proxy_cfg,
+                    args=[
+                        '--no-sandbox', '--disable-setuid-sandbox',
+                        '--disable-blink-features=AutomationControlled',
+                    ]
+                )
                 ctx = browser.new_context(
                     user_agent=STEALTH_UA,
                     viewport={"width": 1920, "height": 1080},
@@ -225,20 +233,65 @@ def auto_login(site_key, username, password):
                 page = ctx.new_page()
                 target_url = f"{base}/mobile" if site_key in ("spinmatch99.com", "spinjeet365.com") else base
                 page.goto(target_url, wait_until="networkidle", timeout=30000)
-                # Wait for WAF challenge to auto-solve (usually 1-3 seconds)
-                page.wait_for_timeout(4000)
+                page.wait_for_timeout(3000)
 
-                # Extract all cookies and HTML from browser directly
-                browser_cookies = ctx.cookies()
-                pw_html = page.content()
-                pw_csrf = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', pw_html)
+                # Extract CSRF token from page
+                pw_csrf = page.evaluate("() => document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')")
                 if pw_csrf:
-                    csrf_meta = pw_csrf.group(1)
+                    csrf_meta = pw_csrf
+
+                # Try performing login directly inside browser context (handles all WAF/AJAX seamlessly)
+                try:
+                    if site_key in ("spinmatch99.com", "spinjeet365.com", "cricash24.com"):
+                        login_resp = page.request.post(f"{base}/api2/v2/login", form={
+                            'email': username,
+                            'password': password,
+                        }, headers={
+                            'X-CSRF-Token': csrf_meta or '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        })
+                    elif site_key == "khelo24match99.com":
+                        login_resp = page.request.post(f"{base}/api2/login", form={
+                            '_token': csrf_meta or '',
+                            'email': username,
+                            'password': password,
+                        }, headers={
+                            'X-CSRF-Token': csrf_meta or '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        })
+                    elif site_key == "starexch555.com":
+                        login_resp = page.request.post(f"{base}/login", form={
+                            'username': username,
+                            'password': password,
+                            '_token': csrf_meta or '',
+                            'remember_me': '1',
+                        }, headers={
+                            'X-Requested-With': 'XMLHttpRequest',
+                        })
+                    else:
+                        login_resp = None
+
+                    if login_resp:
+                        print(f"[WAF-SOLVER] In-browser login status: {login_resp.status}", file=sys.stderr)
+                        try:
+                            res_json = login_resp.json()
+                            if res_json.get("status") in (201, 303, 403) or "invalid" in res_json.get("message", "").lower():
+                                browser.close()
+                                raise Exception(f"Invalid credentials: {res_json.get('message', 'Check username & password')}")
+                        except ValueError:
+                            pass
+                except Exception as login_err:
+                    if "Invalid credentials" in str(login_err):
+                        browser.close()
+                        raise login_err
+                    print(f"[WAF-SOLVER] Direct browser login attempt info: {login_err}", file=sys.stderr)
+
+                browser_cookies = ctx.cookies()
                 browser.close()
 
             print(f"[WAF-SOLVER] Got {len(browser_cookies)} cookies from headless browser", file=sys.stderr)
 
-            # Feed cookies into urllib jar so the rest of auto_login works
+            # Feed cookies into urllib jar
             import http.cookiejar
             for bc in browser_cookies:
                 cookie = http.cookiejar.Cookie(
@@ -251,45 +304,28 @@ def auto_login(site_key, username, password):
                 )
                 jar.set_cookie(cookie)
 
-            # Re-extract XSRF from the new cookies
+            # Re-extract XSRF
             for c in jar:
                 if 'XSRF' in c.name.upper():
                     xsrf = unquote(c.value)
                     break
 
-            # If csrf_meta not found yet, try /mobile with WAF cookies
-            if not csrf_meta:
-                try:
-                    mob2 = urllib.request.Request(f"{base}/mobile")
-                    for k, v in BROWSER_HEADERS.items():
-                        mob2.add_header(k, v)
-                    mob_resp2 = opener.open(mob2, timeout=30)
-                    mob_html2 = mob_resp2.read().decode('utf-8', 'ignore')
-                    mob_m2 = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', mob_html2)
-                    if mob_m2:
-                        csrf_meta = mob_m2.group(1)
-                except:
-                    pass
-
-            # Update xsrf if we found csrf_meta
-            if not xsrf and csrf_meta:
-                xsrf = csrf_meta
-            if not xsrf:
-                for c in jar:
-                    if 'XSRF' in c.name.upper():
-                        xsrf = unquote(c.value)
-                        break
+            # If we already have a session cookie from in-browser login, we can finish right here!
+            has_session_cookie = any('session' in c.name.lower() or 'remember_web' in c.name.lower() for c in jar)
+            if has_session_cookie:
+                print("[WAF-SOLVER] Successfully logged in directly via browser solver!", file=sys.stderr)
+                cookie_parts = [f"{c.name}={c.value}" for c in jar]
+                return "; ".join(cookie_parts)
 
             print(f"[WAF-SOLVER] After solving: xsrf={bool(xsrf)}, csrf_meta={bool(csrf_meta)}", file=sys.stderr)
 
         except ImportError:
             raise Exception(f"AWS WAF Challenge on {site_key} — Playwright not installed on server. Paste cookies manually.")
         except Exception as waf_err:
+            if "Invalid credentials" in str(waf_err):
+                raise waf_err
             print(f"[WAF-SOLVER] Failed: {waf_err}", file=sys.stderr)
-            # If we already have xsrf/csrf from earlier cookies, don't crash — continue with login
-            if xsrf or csrf_meta:
-                print(f"[WAF-SOLVER] Have xsrf/csrf from cookies, continuing despite solver error", file=sys.stderr)
-            else:
+            if not xsrf and not csrf_meta:
                 raise Exception(f"AWS WAF Challenge on {site_key} — auto-solve failed: {waf_err}")
 
     if not xsrf and not csrf_meta:
@@ -339,27 +375,7 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/x-www-form-urlencoded"),
             method="POST")
 
-    elif site_key in ("spinmatch99.com", "spinjeet365.com"):
-        # betexchange_session backend — standard Laravel web login
-        # uses username field + _token, same pattern as StarExch555
-        login_data = urlencode({
-            "username": username, "password": password,
-            "remember_me": 1, "_token": csrf_meta or xsrf,
-        }).encode()
-        login_req = urllib.request.Request(f"{base}/login",
-            data=login_data,
-            headers=make_xhr_headers("application/x-www-form-urlencoded",
-                {"x-csrf-token": csrf_meta or xsrf}),
-            method="POST")
-
-    elif site_key in ("playinhorse.com", "betinexchange88.com"):
-        login_data = json.dumps({"username": username, "password": password}).encode()
-        login_req = urllib.request.Request(f"{base}/api2/v2/login",
-            data=login_data,
-            headers=make_xhr_headers("application/json"),
-            method="POST")
-
-    elif site_key == "cricash24.com":
+    elif site_key in ("cricash24.com", "spinmatch99.com", "spinjeet365.com"):
         login_data = urlencode({
             "email": username, "password": password,
         }).encode()
