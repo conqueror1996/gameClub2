@@ -507,9 +507,9 @@ FULL_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (K
 def get_token(site_key, cookies):
     site = SITES[site_key]
     launch_url = site["launch"]
+    import sys
 
-    # Step 1: Always try direct first — the aws-waf-token cookie from login
-    # should let the VPS through WAF without needing the SOCKS proxy again.
+    # Step 1: Try direct fetch first
     try:
         body = _get_token_direct(launch_url, cookies)
         om = re.search(r'options=([^"&\s]+)', body)
@@ -517,18 +517,16 @@ def get_token(site_key, cookies):
             ob = unquote(om.group(1))
             ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
             o = json.loads(base64.b64decode(ob))
+            print(f"[get_token] Direct success for {site_key}", file=sys.stderr)
             return o["launch_options"]["game_url"]
-        # Body came back but no options= param — might be WAF challenge page
-        if "Human Verification" in body or "gokuProps" in body or len(body) < 100:
-            raise Exception("WAF block on direct — try Playwright")
-        raise Exception("Session expired — please re-login")
+        # No options= found — log what we got and fall through to Playwright
+        snippet = body[:150].replace('\n', ' ')
+        print(f"[get_token] Direct: no options= in response (len={len(body)}, snippet={snippet})", file=sys.stderr)
     except Exception as direct_err:
-        import sys
-        if "Session expired" in str(direct_err):
-            raise
-        print(f"[get_token] Direct failed ({direct_err}), trying Playwright+SOCKS...", file=sys.stderr)
+        print(f"[get_token] Direct failed: {direct_err}", file=sys.stderr)
 
     # Step 2: Fallback — Playwright with SOCKS proxy (home IP)
+    print(f"[get_token] Trying Playwright+SOCKS for {site_key}...", file=sys.stderr)
     try:
         from playwright.sync_api import sync_playwright
         proxy_cfg = {"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"} if is_socks_available() else None
@@ -548,18 +546,29 @@ def get_token(site_key, cookies):
             if cookie_list:
                 ctx.add_cookies(cookie_list)
             page = ctx.new_page()
-            page.goto(launch_url, wait_until="load", timeout=45000)
+            try:
+                page.goto(launch_url, wait_until="commit", timeout=25000)
+            except Exception as nav_err:
+                print(f"[get_token] Playwright nav notice: {nav_err}", file=sys.stderr)
+            page.wait_for_timeout(3000)
             body = page.content()
+            print(f"[get_token] Playwright page loaded, len={len(body)}, url={page.url}", file=sys.stderr)
             browser.close()
         om = re.search(r'options=([^"&\s]+)', body)
         if not om:
-            raise Exception("Session expired — please re-login")
+            snippet = body[:150].replace('\n', ' ')
+            print(f"[get_token] Playwright: no options= (snippet={snippet})", file=sys.stderr)
+            raise Exception(f"Could not get game session — launch page has no game token")
         ob = unquote(om.group(1))
         ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
         o = json.loads(base64.b64decode(ob))
+        print(f"[get_token] Playwright success for {site_key}", file=sys.stderr)
         return o["launch_options"]["game_url"]
+    except ImportError:
+        raise Exception(f"Playwright not installed — cannot get game session for {site_key}")
     except Exception as pw_err:
-        raise Exception(f"Session expired — please re-login ({pw_err})")
+        print(f"[get_token] Playwright failed: {pw_err}", file=sys.stderr)
+        raise Exception(f"Could not get game session ({pw_err})")
 
 
 def _get_token_direct(launch_url, cookies):
