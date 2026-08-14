@@ -497,19 +497,18 @@ def auto_login(site_key, username, password):
 
     return cookie_string
 
-
 # ============================================================
 # GAME SESSION HELPERS
 # ============================================================
 
 FULL_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
 
-def get_token(site_key, cookies):
+def get_token(site_key, cookies, username=None, password=None):
     site = SITES[site_key]
     launch_url = site["launch"]
     import sys
 
-    # Step 1: Try direct fetch first
+    # Step 1: Try direct fetch first (fast path — works when cookies are fresh)
     try:
         body = _get_token_direct(launch_url, cookies)
         om = re.search(r'options=([^"&\s]+)', body)
@@ -519,17 +518,19 @@ def get_token(site_key, cookies):
             o = json.loads(base64.b64decode(ob))
             print(f"[get_token] Direct success for {site_key}", file=sys.stderr)
             return o["launch_options"]["game_url"]
-        # No options= found — log what we got and fall through to Playwright
         snippet = body[:150].replace('\n', ' ')
-        print(f"[get_token] Direct: no options= in response (len={len(body)}, snippet={snippet})", file=sys.stderr)
+        print(f"[get_token] Direct: no options= (len={len(body)}, snippet={snippet})", file=sys.stderr)
     except Exception as direct_err:
         print(f"[get_token] Direct failed: {direct_err}", file=sys.stderr)
 
-    # Step 2: Fallback — Playwright with SOCKS proxy (home IP)
-    print(f"[get_token] Trying Playwright+SOCKS for {site_key}...", file=sys.stderr)
+    # Step 2: Playwright — login + launch in ONE browser session
+    #   This avoids the cookie-injection problem where casino rejects transplanted cookies
+    print(f"[get_token] Trying Playwright login+launch for {site_key}...", file=sys.stderr)
     try:
         from playwright.sync_api import sync_playwright
-        proxy_cfg = {"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"} if is_socks_available() else None
+        socks_on = is_socks_available()
+        proxy_cfg = {"server": f"socks5://{SOCKS_PROXY_HOST}:{SOCKS_PROXY_PORT}"} if socks_on else None
+
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
@@ -537,26 +538,123 @@ def get_token(site_key, cookies):
                 args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
             )
             ctx = browser.new_context(user_agent=FULL_UA)
-            # Inject session cookies into browser
-            cookie_list = []
-            for part in cookies.split('; '):
-                if '=' in part:
-                    name, val = part.split('=', 1)
-                    cookie_list.append({"name": name.strip(), "value": val.strip(), "domain": site_key, "path": "/"})
-            if cookie_list:
-                ctx.add_cookies(cookie_list)
             page = ctx.new_page()
+
+            # 2a: Navigate to site and login in-browser (same session = cookies stick)
+            base = site["base"]
+            target = f"{base}/mobile" if site_key in ("spinmatch99.com", "cricash24.com", "khelo24match99.com", "funinexch.com") else base
             try:
-                page.goto(launch_url, wait_until="commit", timeout=25000)
+                page.goto(target, wait_until="commit", timeout=20000)
+            except Exception:
+                pass
+            page.wait_for_timeout(3000)
+
+            if username and password:
+                # Do in-browser login
+                if site_key == "starexch555.com":
+                    login_result = page.evaluate("""
+                        async ([u, p]) => {
+                            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                            const fd = new URLSearchParams();
+                            fd.append('username', u);
+                            fd.append('password', p);
+                            fd.append('_token', csrf || '');
+                            fd.append('remember_me', '1');
+                            const resp = await fetch('/login', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: fd.toString()
+                            });
+                            return { status: resp.status, body: await resp.text() };
+                        }
+                    """, [username, password])
+                elif site_key == "playinhorse.com":
+                    login_result = page.evaluate("""
+                        async ([u, p]) => {
+                            const resp = await fetch('/api2/v2/login', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                body: JSON.stringify({username: u, password: p})
+                            });
+                            return { status: resp.status, body: await resp.text() };
+                        }
+                    """, [username, password])
+                elif site_key == "khelo24match99.com":
+                    login_result = page.evaluate("""
+                        async ([u, p]) => {
+                            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                            const fd = new URLSearchParams();
+                            fd.append('_token', csrf || '');
+                            fd.append('email', u);
+                            fd.append('password', p);
+                            const resp = await fetch('/api2/login', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: fd.toString()
+                            });
+                            return { status: resp.status, body: await resp.text() };
+                        }
+                    """, [username, password])
+                else:
+                    # Generic (cricash24, spinmatch99, funinexch)
+                    login_result = page.evaluate("""
+                        async ([u, p]) => {
+                            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                            const fd = new URLSearchParams();
+                            fd.append('email', u);
+                            fd.append('password', p);
+                            const resp = await fetch('/api2/v2/login', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                    'X-CSRF-TOKEN': csrf || '',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: fd.toString()
+                            });
+                            return { status: resp.status, body: await resp.text() };
+                        }
+                    """, [username, password])
+
+                print(f"[get_token] In-browser login: {login_result.get('body', '')[:100]}", file=sys.stderr)
+                page.wait_for_timeout(1000)
+            else:
+                # No credentials — inject cookies as fallback
+                cookie_list = []
+                for part in cookies.split('; '):
+                    if '=' in part:
+                        name, val = part.split('=', 1)
+                        cookie_list.append({"name": name.strip(), "value": val.strip(), "domain": f".{site_key}", "path": "/"})
+                        cookie_list.append({"name": name.strip(), "value": val.strip(), "domain": site_key, "path": "/"})
+                if cookie_list:
+                    ctx.add_cookies(cookie_list)
+
+            # 2b: Navigate to game launch URL in same session
+            try:
+                page.goto(launch_url, wait_until="commit", timeout=20000)
             except Exception as nav_err:
-                print(f"[get_token] Playwright nav notice: {nav_err}", file=sys.stderr)
+                print(f"[get_token] Launch nav notice: {nav_err}", file=sys.stderr)
             page.wait_for_timeout(3000)
             body = page.content()
-            print(f"[get_token] Playwright page loaded, len={len(body)}, url={page.url}", file=sys.stderr)
+            final_url = page.url
+            print(f"[get_token] Playwright: len={len(body)}, url={final_url}", file=sys.stderr)
+
+            # Also check the URL itself for options= (some sites put it in the redirect URL)
+            om = re.search(r'options=([^"&\s]+)', body) or re.search(r'options=([^"&\s]+)', final_url)
+
+            # Update cookies in session for future use
+            new_cookies = ctx.cookies()
+            cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in new_cookies)
             browser.close()
-        om = re.search(r'options=([^"&\s]+)', body)
+
         if not om:
-            snippet = body[:150].replace('\n', ' ')
+            snippet = body[:200].replace('\n', ' ')
             print(f"[get_token] Playwright: no options= (snippet={snippet})", file=sys.stderr)
             raise Exception(f"Could not get game session — launch page has no game token")
         ob = unquote(om.group(1))
@@ -724,7 +822,7 @@ def login():
             cookies = auto_login(site_key, username, password)
 
         # Get game token + SID
-        token = get_token(site_key, cookies)
+        token = get_token(site_key, cookies, username, password)
         sid = get_sid(token)
 
         # Get balance
@@ -812,7 +910,7 @@ def _ensure_fresh_sid():
     # Layer 2: SID stale — try refreshing with existing cookies
     print(f"[SESSION] SID stale ({sid_age:.0f}s old), refreshing...", file=sys.stderr)
     try:
-        token = get_token(session['site'], session['cookies'])
+        token = get_token(session['site'], session['cookies'], session.get('username'), session.get('password'))
         sid = get_sid(token)
         session['sid'] = sid
         session['sid_time'] = time.time()
@@ -831,7 +929,7 @@ def _ensure_fresh_sid():
     try:
         cookies = auto_login(session['site'], username, password)
         session['cookies'] = cookies
-        token = get_token(session['site'], cookies)
+        token = get_token(session['site'], cookies, username, password)
         sid = get_sid(token)
         session['sid'] = sid
         session['sid_time'] = time.time()
