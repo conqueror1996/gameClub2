@@ -724,11 +724,31 @@ def logout():
 
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():
-    """Nuclear wipe: ALL in-memory state, session cookies, everything."""
+    """Nuclear wipe: ALL in-memory state, session cookies, temp files, browser processes."""
     global sessions_state
-    sessions_state = {}  # Wipe ALL users' game state
-    session.clear()      # Wipe Flask session cookie
-    return jsonify({"success": True, "message": "All cache, sessions and data wiped completely"})
+    sessions_state = {}   # Wipe ALL users' game state
+    session.clear()       # Wipe Flask session cookie
+
+    # Kill any orphaned Playwright/Chromium processes
+    import subprocess, gc
+    try:
+        subprocess.run(['pkill', '-f', 'chromium'], capture_output=True, timeout=5)
+        subprocess.run(['pkill', '-f', 'playwright'], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+    # Clear temp Playwright artifacts
+    import shutil, glob
+    for tmp_dir in glob.glob('/tmp/playwright*'):
+        try:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    # Force Python garbage collection
+    gc.collect()
+
+    return jsonify({"success": True, "message": "All cache, sessions, browser processes and temp data wiped"})
 
 
 @app.route('/api/bet', methods=['POST'])
