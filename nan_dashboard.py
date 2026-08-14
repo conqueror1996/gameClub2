@@ -546,6 +546,11 @@ def index():
     )
 
 
+@app.route('/api/tunnel/status')
+def tunnel_status():
+    return jsonify({"active": is_socks_available()})
+
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json

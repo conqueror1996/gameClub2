@@ -204,11 +204,18 @@
             <div class="login-logo">🎰</div>
             <div class="login-title">Fight Club</div>
             <div class="login-sub">Nucleus Gaming Baccarat — PoC Dashboard</div>
-            {% if tunnel_active %}
-            <div style="margin-top:8px;font-size:11px;color:#22c55e;font-weight:500;">🏠 Home IP Active — Residential routing</div>
-            {% else %}
-            <div style="margin-top:8px;font-size:11px;color:#94a3b8;font-weight:400;">🖥️ VPS IP — Run home_tunnel.sh for residential IP</div>
-            {% endif %}
+            <div id="tunnelStatusBadge" style="margin-top:10px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:space-between;background:{% if tunnel_active %}rgba(34,197,94,0.1){% else %}rgba(255,255,255,0.03){% endif %};border:1px solid {% if tunnel_active %}rgba(34,197,94,0.25){% else %}rgba(255,255,255,0.08){% endif %};color:{% if tunnel_active %}#22c55e{% else %}#94a3b8{% endif %};">
+                <span id="tunnelStatusText">
+                    {% if tunnel_active %}
+                    🟢 <b>Home IP Active</b> (Residential Routing)
+                    {% else %}
+                    🔴 <b>Home IP Tunnel Offline</b> (VPS IP)
+                    {% endif %}
+                </span>
+                <button type="button" onclick="copyTunnelCmd()" id="btnTunnelCmd" style="background:transparent;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;margin-left:8px;text-decoration:underline;">
+                    {% if tunnel_active %}✓ Active{% else %}⚡ Run Tunnel{% endif %}
+                </button>
+            </div>
         </div>
 
         <div id="errorBox" class="error-box"></div>
@@ -371,6 +378,41 @@
                 btn.disabled = false;
             }
         }
+
+        function copyTunnelCmd() {
+            const cmd = 'python3 /Users/urbanclay/Desktop/7mojo_dual_hedge_final/run_home_tunnel.py';
+            navigator.clipboard.writeText(cmd).then(() => {
+                const b = document.getElementById('btnTunnelCmd');
+                b.textContent = '✓ Command Copied!';
+                setTimeout(() => { b.textContent = '⚡ Run Tunnel'; }, 2000);
+            }).catch(() => {
+                alert('Run this command on your Mac terminal:\n\n' + cmd);
+            });
+        }
+
+        // Auto-check tunnel status every 5 seconds
+        setInterval(async () => {
+            try {
+                const res = await fetch('/api/tunnel/status');
+                const data = await res.json();
+                const badge = document.getElementById('tunnelStatusBadge');
+                const text = document.getElementById('tunnelStatusText');
+                const btn = document.getElementById('btnTunnelCmd');
+                if (data.active) {
+                    badge.style.background = 'rgba(34,197,94,0.1)';
+                    badge.style.borderColor = 'rgba(34,197,94,0.25)';
+                    badge.style.color = '#22c55e';
+                    text.innerHTML = '🟢 <b>Home IP Active</b> (Residential Routing)';
+                    btn.textContent = '✓ Active';
+                } else {
+                    badge.style.background = 'rgba(255,255,255,0.03)';
+                    badge.style.borderColor = 'rgba(255,255,255,0.08)';
+                    badge.style.color = '#94a3b8';
+                    text.innerHTML = '🔴 <b>Home IP Tunnel Offline</b> (VPS IP)';
+                    btn.textContent = '⚡ Run Tunnel';
+                }
+            } catch(e) {}
+        }, 5000);
     </script>
 </body>
 </html>
