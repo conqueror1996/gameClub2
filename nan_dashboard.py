@@ -223,12 +223,17 @@ def auto_login(site_key, username, password):
                     viewport={"width": 1920, "height": 1080},
                 )
                 page = ctx.new_page()
-                page.goto(base, wait_until="networkidle", timeout=30000)
+                target_url = f"{base}/mobile" if site_key in ("spinmatch99.com", "spinjeet365.com") else base
+                page.goto(target_url, wait_until="networkidle", timeout=30000)
                 # Wait for WAF challenge to auto-solve (usually 1-3 seconds)
                 page.wait_for_timeout(4000)
 
-                # Extract all cookies from browser
+                # Extract all cookies and HTML from browser directly
                 browser_cookies = ctx.cookies()
+                pw_html = page.content()
+                pw_csrf = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', pw_html)
+                if pw_csrf:
+                    csrf_meta = pw_csrf.group(1)
                 browser.close()
 
             print(f"[WAF-SOLVER] Got {len(browser_cookies)} cookies from headless browser", file=sys.stderr)
@@ -252,25 +257,19 @@ def auto_login(site_key, username, password):
                     xsrf = unquote(c.value)
                     break
 
-            # Re-fetch homepage with WAF cookies now set
-            req2 = urllib.request.Request(base)
-            for k, v in BROWSER_HEADERS.items():
-                req2.add_header(k, v)
-            resp2 = opener.open(req2, timeout=30)
-            html2 = resp2.read().decode('utf-8', 'ignore')
-            csrf_m2 = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', html2)
-            if csrf_m2:
-                csrf_meta = csrf_m2.group(1)
+            # If csrf_meta not found yet, try /mobile with WAF cookies
             if not csrf_meta:
-                # Try /mobile with WAF cookies
-                mob2 = urllib.request.Request(f"{base}/mobile")
-                for k, v in BROWSER_HEADERS.items():
-                    mob2.add_header(k, v)
-                mob_resp2 = opener.open(mob2, timeout=30)
-                mob_html2 = mob_resp2.read().decode('utf-8', 'ignore')
-                mob_m2 = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', mob_html2)
-                if mob_m2:
-                    csrf_meta = mob_m2.group(1)
+                try:
+                    mob2 = urllib.request.Request(f"{base}/mobile")
+                    for k, v in BROWSER_HEADERS.items():
+                        mob2.add_header(k, v)
+                    mob_resp2 = opener.open(mob2, timeout=30)
+                    mob_html2 = mob_resp2.read().decode('utf-8', 'ignore')
+                    mob_m2 = re.search(r'meta\s+name="csrf-token"\s+content="([^"]+)"', mob_html2)
+                    if mob_m2:
+                        csrf_meta = mob_m2.group(1)
+                except:
+                    pass
 
             # Update xsrf if we found csrf_meta
             if not xsrf and csrf_meta:
@@ -397,7 +396,9 @@ def auto_login(site_key, username, password):
     except urllib.error.HTTPError as e:
         body = e.read().decode('utf-8', 'ignore')
         status = e.code
-        if status == 422:
+        if "Human Verification" in body or "captcha" in body.lower() or status == 405:
+            raise Exception(f"{site['name']} requires Human Verification (CAPTCHA) — click 'Switch to Cookie Paste Mode' and paste browser cookies.")
+        elif status == 422:
             try:
                 err = json.loads(body)
                 msg = err.get("message", "") or str(err.get("errors", ""))
