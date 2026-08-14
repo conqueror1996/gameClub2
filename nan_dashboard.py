@@ -732,7 +732,9 @@ def login():
         session['cookies'] = cookies
         session['balance'] = balance
         session['username'] = username
+        session['password'] = password  # Stored for auto-re-login on expiry
         session['sid'] = sid  # Game session ID — unique per player
+        session['sid_time'] = time.time()  # Track SID age for proactive refresh
 
         st = get_state()
         st['balance'] = balance
@@ -784,6 +786,53 @@ def clear_cache():
     return jsonify({"success": True, "message": "All cache, sessions, browser processes and temp data wiped"})
 
 
+def _ensure_fresh_sid():
+    """3-layer auto-recovery: ensures we always have a valid SID.
+    Layer 1: Reuse current SID if < 4 min old
+    Layer 2: Refresh SID with existing cookies
+    Layer 3: Re-login with stored credentials → new cookies → new SID
+    """
+    import sys
+    sid = session.get('sid')
+    sid_age = time.time() - session.get('sid_time', 0)
+
+    # Layer 1: Current SID is fresh enough
+    if sid and sid_age < 240:  # < 4 minutes
+        return sid
+
+    # Layer 2: SID stale — try refreshing with existing cookies
+    print(f"[SESSION] SID stale ({sid_age:.0f}s old), refreshing...", file=sys.stderr)
+    try:
+        token = get_token(session['site'], session['cookies'])
+        sid = get_sid(token)
+        session['sid'] = sid
+        session['sid_time'] = time.time()
+        print(f"[SESSION] SID refreshed with existing cookies ✓", file=sys.stderr)
+        return sid
+    except Exception as e2:
+        print(f"[SESSION] Cookie refresh failed: {e2}", file=sys.stderr)
+
+    # Layer 3: Cookies dead — full re-login
+    username = session.get('username')
+    password = session.get('password')
+    if not username or not password:
+        raise Exception("Session expired — please re-login")
+
+    print(f"[SESSION] Re-logging in as {username}...", file=sys.stderr)
+    try:
+        cookies = auto_login(session['site'], username, password)
+        session['cookies'] = cookies
+        token = get_token(session['site'], cookies)
+        sid = get_sid(token)
+        session['sid'] = sid
+        session['sid_time'] = time.time()
+        print(f"[SESSION] Full re-login + new SID ✓", file=sys.stderr)
+        return sid
+    except Exception as e3:
+        print(f"[SESSION] Re-login failed: {e3}", file=sys.stderr)
+        raise Exception("Session expired — please re-login")
+
+
 @app.route('/api/bet', methods=['POST'])
 def bet():
     if 'logged_in' not in session:
@@ -809,31 +858,24 @@ def bet():
         return jsonify({"error": "Invalid position"}), 400
 
     try:
-        # Reuse stored SID — don't create new session on every bet
-        sid = session.get('sid')
-
-        if not sid:
-            token = get_token(session['site'], session['cookies'])
-            sid = get_sid(token)
-            session['sid'] = sid
-
+        sid = _ensure_fresh_sid()
         result, raw = place_bet(sid, bet_map[position])
 
-        # If bet failed, try refreshing SID (and re-login if cookies expired)
+        # If bet failed with session/expired error, force full SID refresh and retry
         if result.get('RESULT') != 'OK':
             error_text = unquote(result.get('ERRORTEXT', '')).lower()
             if 'session' in error_text or 'expired' in error_text or 'invalid' in error_text:
+                import sys
+                print(f"[BET] SID rejected: {error_text}, forcing full refresh...", file=sys.stderr)
+                # Force refresh by clearing sid_time
+                session['sid_time'] = 0
                 try:
-                    # Try getting new SID with existing cookies
-                    token = get_token(session['site'], session['cookies'])
-                    sid = get_sid(token)
-                except:
-                    # Cookies dead — clear SID, user must re-login
+                    sid = _ensure_fresh_sid()
+                    session['sid'] = sid
+                    result, raw = place_bet(sid, bet_map[position])
+                except Exception:
                     session.pop('sid', None)
                     return jsonify({"error": "Session expired — please re-login"}), 401
-
-                session['sid'] = sid
-                result, raw = place_bet(sid, bet_map[position])
 
         if result.get('RESULT') != 'OK':
             return jsonify({"error": f"{result.get('RESULT')}: {unquote(result.get('ERRORTEXT', '?'))}"}), 400
@@ -850,6 +892,8 @@ def bet():
         old_bal = session.get('balance', 0)
         profit = round(balance - old_bal, 2)
         session['balance'] = balance
+        # Keep SID alive after successful bet
+        session['sid_time'] = time.time()
 
         st = get_state()
         st['balance'] = balance
@@ -876,6 +920,8 @@ def bet():
         })
 
     except Exception as e:
+        if '401' in str(e) or 'Session expired' in str(e) or 're-login' in str(e):
+            return jsonify({"error": str(e)}), 401
         return jsonify({"error": str(e)}), 500
 
 
@@ -884,18 +930,26 @@ def get_balance():
     if 'logged_in' not in session:
         return jsonify({"error": "Not logged in"}), 401
     try:
-        sid = session.get('sid')
-        if not sid:
-            token = get_token(session['site'], session['cookies'])
-            sid = get_sid(token)
-            session['sid'] = sid
+        sid = _ensure_fresh_sid()
         result, _ = place_bet(sid, "NaN 0 0")
+
+        # If balance probe failed, force refresh and retry
+        if result.get('RESULT') != 'OK':
+            error_text = unquote(result.get('ERRORTEXT', '')).lower()
+            if 'session' in error_text or 'expired' in error_text:
+                session['sid_time'] = 0
+                sid = _ensure_fresh_sid()
+                result, _ = place_bet(sid, "NaN 0 0")
+
         balance = float(result.get('BALANCE', 0))
         session['balance'] = balance
+        session['sid_time'] = time.time()  # Keep alive
         st = get_state()
         st['balance'] = balance
         return jsonify({"balance": balance, "total_profit": round(balance - st['initial_balance'], 2)})
     except Exception as e:
+        if 'Session expired' in str(e) or 're-login' in str(e):
+            return jsonify({"error": str(e)}), 401
         return jsonify({"error": str(e)}), 500
 
 
