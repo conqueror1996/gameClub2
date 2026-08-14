@@ -331,6 +331,19 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/x-www-form-urlencoded"),
             method="POST")
 
+    elif site_key in ("spinmatch99.com", "spinjeet365.com"):
+        # betexchange_session backend — standard Laravel web login
+        # uses username field + _token, same pattern as StarExch555
+        login_data = urlencode({
+            "username": username, "password": password,
+            "remember_me": 1, "_token": csrf_meta or xsrf,
+        }).encode()
+        login_req = urllib.request.Request(f"{base}/login",
+            data=login_data,
+            headers=make_xhr_headers("application/x-www-form-urlencoded",
+                {"x-csrf-token": csrf_meta or xsrf}),
+            method="POST")
+
     elif site_key in ("playinhorse.com", "betinexchange88.com"):
         login_data = json.dumps({"username": username, "password": password}).encode()
         login_req = urllib.request.Request(f"{base}/api2/v2/login",
@@ -338,7 +351,7 @@ def auto_login(site_key, username, password):
             headers=make_xhr_headers("application/json"),
             method="POST")
 
-    elif site_key in ("cricash24.com", "spinmatch99.com", "spinjeet365.com"):
+    elif site_key == "cricash24.com":
         login_data = urlencode({
             "email": username, "password": password,
         }).encode()
@@ -448,12 +461,13 @@ def get_token(site_key, cookies):
     ob += '=' * (4 - len(ob) % 4) if len(ob) % 4 else ''
     o = json.loads(base64.b64decode(ob))
     gu = o["launch_options"]["game_url"]
-    return re.search(r'token=([^&]+)', gu).group(1)
+    # Return full game_url — Nucleus requires all params (cashierUrl, homeUrl, etc.)
+    return gu
 
 
-def get_sid(token):
-    url = f"{GAME_BASE}/cwstartgamev2.do?bankId=winmatch&gameId=30239&mode=real&token={token}&lang=en"
-    req = urllib.request.Request(url, headers={
+def get_sid(game_url):
+    """Fetch the Nucleus game session SID using the full game_url from get_token()."""
+    req = urllib.request.Request(game_url, headers={
         "User-Agent": FULL_UA,
         "Accept": "text/html,application/xhtml+xml,*/*",
         "Accept-Language": "en-US,en;q=0.9",
@@ -465,7 +479,10 @@ def get_sid(token):
     html = resp.read().decode('utf-8', 'ignore')
     sid_m = re.search(r'SID=([^&"]+)', html)
     if not sid_m:
-        raise Exception("Could not get game session")
+        # Log what Nucleus returned for debugging
+        err_m = re.search(r'Sorry,[^<]{0,200}', html)
+        detail = err_m.group(0).strip() if err_m else html[:200]
+        raise Exception(f"Could not get game session: {detail}")
     return sid_m.group(1)
 
 
